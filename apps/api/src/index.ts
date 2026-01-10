@@ -137,6 +137,42 @@ app.get('/buckets/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Get all images in a bucket
+app.get('/buckets/:bucketId/images', async (req: Request, res: Response) => {
+  try {
+    const { bucketId } = req.params;
+    const { limit = 50, skip = 0, includeBase64 = 'false' } = req.query;
+    const imagesCollection = getImagesCollection();
+
+    // Build projection - exclude base64 by default for performance
+    const projection = includeBase64 === 'true' ? {} : { imageBase64: 0 };
+
+    const images = await imagesCollection
+      .find({ bucketId })
+      .sort({ 'metadata.uploadedAt': -1 })
+      .skip(Number(skip))
+      .limit(Number(limit))
+      .project(projection)
+      .toArray();
+
+    const totalCount = await imagesCollection.countDocuments({ bucketId });
+
+    res.json({
+      success: true,
+      images,
+      count: images.length,
+      totalCount,
+      hasMore: Number(skip) + images.length < totalCount
+    });
+  } catch (error) {
+    console.error('Error fetching images:', error);
+    res.status(500).json({
+      error: 'Failed to fetch images',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Get specific image from bucket
 app.get('/buckets/:bucketId/images/:imageId', async (req: Request, res: Response) => {
   try {
