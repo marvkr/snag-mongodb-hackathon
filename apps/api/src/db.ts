@@ -17,6 +17,20 @@ export interface Bucket {
   imageCount?: number;
 }
 
+export interface TavilySearchResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+}
+
+export interface SearchResultsMetadata {
+  query: string;
+  results: TavilySearchResult[];
+  searchedAt: Date;
+  resultCount: number;
+}
+
 export interface ImageMetadata {
   _id?: ObjectId;
   id: string;
@@ -29,6 +43,7 @@ export interface ImageMetadata {
     uploadedAt: Date;
   };
   extractedMetadata?: Record<string, any>;
+  searchResults?: SearchResultsMetadata;
   aiOutput?: Record<string, any>;
   generatedAt?: Date;
 }

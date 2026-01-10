@@ -10,6 +10,8 @@ import {
   getImagesCollection,
   ObjectId,
 } from './db';
+import { searchForTravel, searchForProduct } from './services/tavily';
+import type { SearchResultsMetadata } from './db';
 
 dotenv.config();
 
@@ -47,6 +49,19 @@ const twitterOutputSchema = z.object({
   bestTimeToPost: z.string(),
   emojiSuggestions: z.array(z.string())
 });
+
+// Helper function to format search results for AI prompts
+function formatSearchResults(searchResults: SearchResultsMetadata | null): string {
+  if (!searchResults || searchResults.results.length === 0) {
+    return '';
+  }
+
+  const formatted = searchResults.results
+    .map((r, i) => `${i + 1}. ${r.title}\n   ${r.content}\n   Source: ${r.url}`)
+    .join('\n\n');
+
+  return `\n\nREAL-TIME SEARCH RESULTS:\n${formatted}\n\nUse the above search results as factual references.\n`;
+}
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
@@ -172,6 +187,46 @@ app.post('/api/generate/:bucketId/:imageId', async (req: Request, res: Response)
 
     const extractedMetadata = image.extractedMetadata || {};
 
+    // Search Tavily for travel and products buckets
+    let searchResults: SearchResultsMetadata | null = null;
+
+    if (bucketId === 'travel' && extractedMetadata.location) {
+      console.log(`🔍 Searching Tavily for travel location: ${extractedMetadata.location}`);
+      searchResults = await searchForTravel(extractedMetadata.location);
+
+      if (searchResults) {
+        try {
+          await imagesCollection.updateOne(
+            { id: imageId, bucketId: bucketId },
+            { $set: { searchResults } }
+          );
+          console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
+        } catch (dbError) {
+          console.error('❌ Failed to store search results:', dbError);
+          // Continue - AI generation not affected
+        }
+      }
+    } else if (bucketId === 'products' && extractedMetadata.productName) {
+      console.log(`🔍 Searching Tavily for product: ${extractedMetadata.productName}`);
+      searchResults = await searchForProduct(
+        extractedMetadata.productName,
+        extractedMetadata.price
+      );
+
+      if (searchResults) {
+        try {
+          await imagesCollection.updateOne(
+            { id: imageId, bucketId: bucketId },
+            { $set: { searchResults } }
+          );
+          console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
+        } catch (dbError) {
+          console.error('❌ Failed to store search results:', dbError);
+          // Continue - AI generation not affected
+        }
+      }
+    }
+
     // Select schema and create prompt based on bucket type
     let schema;
     let prompt;
@@ -179,8 +234,7 @@ app.post('/api/generate/:bucketId/:imageId', async (req: Request, res: Response)
     switch (bucketId) {
       case 'travel':
         schema = travelOutputSchema;
-        prompt = `Based on the location "${extractedMetadata.location}", provide travel recommendations.
-
+        prompt = `Based on the location "${extractedMetadata.location}", provide travel recommendations.${formatSearchResults(searchResults)}
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {
   "locationDescription": "string",
@@ -193,8 +247,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
 
       case 'products':
         schema = productsOutputSchema;
-        prompt = `Analyze the product "${extractedMetadata.productName}" (${extractedMetadata.price}).
-
+        prompt = `Analyze the product "${extractedMetadata.productName}" (${extractedMetadata.price}).${formatSearchResults(searchResults)}
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {
   "summary": "string",
@@ -247,7 +300,14 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
       model,
       bucketId,
       imageId,
-      extractedMetadata
+      extractedMetadata,
+      ...(searchResults && {
+        searchResults: {
+          query: searchResults.query,
+          resultCount: searchResults.resultCount,
+          searchedAt: searchResults.searchedAt
+        }
+      })
     });
   } catch (error) {
     console.error('Error generating output:', error);

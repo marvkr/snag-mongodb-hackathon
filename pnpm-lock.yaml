@@ -38,6 +38,9 @@ importers:
       mongodb:
         specifier: ^7.0.0
         version: 7.0.0
+      tavily:
+        specifier: ^1.0.2
+        version: 1.0.2
       zod:
         specifier: ^4.3.5
         version: 4.3.5
@@ -48,6 +51,9 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.25
+      '@types/minimatch':
+        specifier: ^6.0.0
+        version: 6.0.0
       '@types/node':
         specifier: ^20.10.6
         version: 20.19.28
@@ -2980,6 +2986,10 @@ packages:
     resolution: {integrity: sha512-eTIzlVOSUR+JxdDFepEYcBMtZ9Qqdef+rnzWdRZuMbOywu5tO2w2N7rqjoANZ5k9vywhL6Br1VRjUIgTQx4E8w==}
     engines: {node: '>=6'}
 
+  ky@1.14.2:
+    resolution: {integrity: sha512-q3RBbsO5A5zrPhB6CaCS8ZUv+NWCXv6JJT4Em0i264G9W0fdPB8YRfnnEi7Dm7X7omAkBIPojzYJ2D1oHTHqug==}
+    engines: {node: '>=18'}
+
   lan-network@0.1.7:
     resolution: {integrity: sha512-mnIlAEMu4OyEvUNdzco9xpuB9YVcPkQec+QsgycBCtPZvEqWPCDPfbAE4OJMdBBWpZWtpCn1xw9jJYlwjWI5zQ==}
     hasBin: true
@@ -4114,6 +4124,10 @@ packages:
 
   tar@7.5.2:
     resolution: {integrity: sha512-7NyxrTE4Anh8km8iEy7o0QYPs+0JKBTj5ZaqHg6B39erLg0qYXN3BijtShwbsNSvQ+LN75+KV+C4QR/f6Gwnpg==}
+    engines: {node: '>=18'}
+
+  tavily@1.0.2:
+    resolution: {integrity: sha512-Lu9qLmOXsQEwVch+BJvmmCTEUnd7ns1b6ZRkOHJX6ZEwK6Zc5pzQSM3ew4cgpqTxrSsDNyyREPyoZoJx83ERzQ==}
     engines: {node: '>=18'}
 
   temp-dir@2.0.0:
@@ -7918,6 +7932,8 @@ snapshots:
 
   kleur@3.0.3: {}
 
+  ky@1.14.2: {}
+
   lan-network@0.1.7: {}
 
   leven@3.1.0: {}
@@ -9269,6 +9285,10 @@ snapshots:
       minipass: 7.1.2
       minizlib: 3.1.0
       yallist: 5.0.0
+
+  tavily@1.0.2:
+    dependencies:
+      ky: 1.14.2
 
   temp-dir@2.0.0: {}
 
