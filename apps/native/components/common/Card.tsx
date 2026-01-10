@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Pressable, StyleSheet, ViewStyle } from 'react-native';
+import { View, StyleSheet, ViewStyle } from 'react-native';
+import { PressableScale } from './PressableScale';
 import { colors } from '../../constants';
 
 interface CardProps {
@@ -11,16 +12,9 @@ interface CardProps {
 export function Card({ children, onPress, style }: CardProps) {
   if (onPress) {
     return (
-      <Pressable
-        onPress={onPress}
-        style={({ pressed }) => [
-          styles.container,
-          style,
-          pressed && styles.pressed,
-        ]}
-      >
+      <PressableScale onPress={onPress} style={[styles.container, style]}>
         {children}
-      </Pressable>
+      </PressableScale>
     );
   }
 
@@ -37,9 +31,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  pressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
   },
 });
