@@ -17,7 +17,7 @@ const IntentExtractionSchema = z.object({
     entities: z.array(z.string()).optional(),
     places: z.array(z.string()).optional(),
     products: z.array(z.string()).optional(),
-    metadata: z.record(z.any()).optional(),
+    metadata: z.record(z.string(), z.any()).optional(),
   }).optional(),
 });
 
@@ -147,7 +147,7 @@ Return ONLY the JSON, no markdown, no explanation.`;
         throw new Error(`Voyage API error: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { data: Array<{ embedding: number[] }> };
       return data.data[0].embedding;
     } catch (error) {
       console.error('Error generating embedding:', error);
@@ -177,7 +177,7 @@ Return ONLY the JSON, no markdown, no explanation.`;
         throw new Error(`Voyage API error: ${error}`);
       }
 
-      const data = await response.json();
+      const data = await response.json() as { data: Array<{ embedding: number[] }> };
       return data.data[0].embedding;
     } catch (error) {
       console.error('Error generating text embedding:', error);

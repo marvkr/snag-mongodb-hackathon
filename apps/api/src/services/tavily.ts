@@ -36,10 +36,7 @@ export async function searchForTravel(
     console.log(`🔍 [Tavily] Searching for travel: "${query}"`);
     const startTime = Date.now();
 
-    const response = await client.search(query, {
-      maxResults: 5,
-      searchDepth: 'basic',
-    });
+    const response = await client.search(query);
 
     const responseTime = ((Date.now() - startTime) / 1000).toFixed(2);
 
@@ -95,10 +92,7 @@ export async function searchForProduct(
     console.log(`🔍 [Tavily] Searching for product: "${query}"`);
     const startTime = Date.now();
 
-    const response = await client.search(query, {
-      maxResults: 5,
-      searchDepth: 'basic',
-    });
+    const response = await client.search(query);
 
     const responseTime = ((Date.now() - startTime) / 1000).toFixed(2);
 

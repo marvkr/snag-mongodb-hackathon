@@ -8,7 +8,6 @@ import {
   connectToDatabase,
   getBucketsCollection,
   getImagesCollection,
-  getScreenshotsCollection,
   ObjectId,
 } from './db';
 import { searchForTravel, searchForProduct } from './services/tavily';
@@ -184,18 +183,8 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Voyage API key not configured' });
     }
 
-    const screenshotsCollection = getScreenshotsCollection();
     const imagesCollection = getImagesCollection();
-    const screenshotId = randomUUID();
-
-    // Create initial screenshot record
-    await screenshotsCollection.insertOne({
-      id: screenshotId,
-      imageBase64,
-      imageUrl: '', // Can be added later if stored externally
-      uploadedAt: new Date(),
-      status: 'processing',
-    });
+    const imageId = randomUUID();
 
     // Extract intent using Claude Vision
     const processor = new ScreenshotProcessor(process.env.ANTHROPIC_API_KEY);
@@ -210,45 +199,35 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       // Continue without embedding - intent extraction is more critical
     }
 
-    // Update screenshot with extracted data
-    await screenshotsCollection.updateOne(
-      { id: screenshotId },
-      {
-        $set: {
-          intent: {
-            primary_bucket: intentData.primary_bucket,
-            bucket_candidates: intentData.bucket_candidates,
-            confidence: intentData.confidence,
-            rationale: intentData.rationale,
-          },
-          extractedData: intentData.extracted_data,
-          ...(embedding ? { embedding } : {}),
-          processedAt: new Date(),
-          status: 'completed',
-        },
-      }
-    );
-
-    // Save to bucket as an image
-    const imageId = randomUUID();
     const bucketId = intentData.primary_bucket;
 
+    // Save directly to images collection
     await imagesCollection.insertOne({
       id: imageId,
       bucketId: bucketId,
       url: '', // Can store external URL if needed
+      imageBase64,
       metadata: {
-        filename: `screenshot_${screenshotId}.${imageMediaType.split('/')[1] || 'png'}`,
+        filename: `screenshot_${imageId}.${imageMediaType.split('/')[1] || 'png'}`,
         size: imageBase64.length,
         contentType: imageMediaType,
         uploadedAt: new Date(),
       },
+      intent: {
+        primary_bucket: intentData.primary_bucket,
+        bucket_candidates: intentData.bucket_candidates,
+        confidence: intentData.confidence,
+        rationale: intentData.rationale,
+      },
+      extractedData: intentData.extracted_data,
       extractedMetadata: intentData.extracted_data,
+      embedding,
+      processedAt: new Date(),
+      status: 'completed',
     });
 
     res.json({
       success: true,
-      screenshotId,
       imageId,
       bucketId,
       intent: intentData,
@@ -265,16 +244,16 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
   }
 });
 
-// Get all screenshots
+// Get all screenshots (now uses images collection)
 app.get('/api/screenshots', async (req: Request, res: Response) => {
   try {
     const { bucket, limit = 50, skip = 0 } = req.query;
-    const screenshotsCollection = getScreenshotsCollection();
+    const imagesCollection = getImagesCollection();
 
     const filter = bucket ? { 'intent.primary_bucket': bucket } : {};
-    const screenshots = await screenshotsCollection
+    const screenshots = await imagesCollection
       .find(filter)
-      .sort({ uploadedAt: -1 })
+      .sort({ 'metadata.uploadedAt': -1 })
       .skip(Number(skip))
       .limit(Number(limit))
       .project({ imageBase64: 0 }) // Exclude base64 data for performance
@@ -290,13 +269,13 @@ app.get('/api/screenshots', async (req: Request, res: Response) => {
   }
 });
 
-// Get specific screenshot
+// Get specific screenshot (now uses images collection)
 app.get('/api/screenshots/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const screenshotsCollection = getScreenshotsCollection();
+    const imagesCollection = getImagesCollection();
 
-    const screenshot = await screenshotsCollection.findOne({ id });
+    const screenshot = await imagesCollection.findOne({ id });
 
     if (!screenshot) {
       return res.status(404).json({ error: 'Screenshot not found' });
@@ -312,7 +291,7 @@ app.get('/api/screenshots/:id', async (req: Request, res: Response) => {
   }
 });
 
-// Vector search screenshots
+// Vector search screenshots (now uses images collection)
 app.post('/api/screenshots/search', async (req: Request, res: Response) => {
   try {
     const { query, limit = 10 } = req.body;
@@ -328,14 +307,14 @@ app.post('/api/screenshots/search', async (req: Request, res: Response) => {
     const processor = new ScreenshotProcessor(process.env.ANTHROPIC_API_KEY);
     const queryEmbedding = await processor.generateTextEmbedding(query, process.env.VOYAGE_API_KEY);
 
-    const screenshotsCollection = getScreenshotsCollection();
+    const imagesCollection = getImagesCollection();
 
     // Perform vector search
-    const results = await screenshotsCollection
+    const results = await imagesCollection
       .aggregate([
         {
           $vectorSearch: {
-            index: 'screenshot_vector_index',
+            index: 'image_vector_index',
             path: 'embedding',
             queryVector: queryEmbedding,
             numCandidates: 100,
@@ -345,9 +324,10 @@ app.post('/api/screenshots/search', async (req: Request, res: Response) => {
         {
           $project: {
             id: 1,
-            uploadedAt: 1,
+            'metadata.uploadedAt': 1,
             intent: 1,
             extractedData: 1,
+            bucketId: 1,
             score: { $meta: 'vectorSearchScore' },
           },
         },
