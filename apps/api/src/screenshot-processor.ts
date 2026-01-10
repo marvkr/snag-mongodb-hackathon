@@ -125,10 +125,10 @@ Return ONLY the JSON, no markdown, no explanation.`;
    */
   async generateEmbedding(imageBase64: string, voyageApiKey: string): Promise<number[]> {
     try {
-      // Remove data URI prefix if present (Voyage wants raw base64)
-      const rawBase64 = imageBase64.includes(',')
-        ? imageBase64.split(',')[1]
-        : imageBase64;
+      // Ensure we have the full data URI format (Voyage requires it)
+      const dataUri = imageBase64.startsWith('data:')
+        ? imageBase64
+        : `data:image/png;base64,${imageBase64}`;
 
       const response = await fetch('https://api.voyageai.com/v1/multimodalembeddings', {
         method: 'POST',
@@ -138,7 +138,7 @@ Return ONLY the JSON, no markdown, no explanation.`;
         },
         body: JSON.stringify({
           model: 'voyage-multimodal-3',
-          inputs: [{ content: [{ type: 'image_base64', image_base64: rawBase64 }] }],
+          inputs: [{ content: [{ type: 'image_base64', image_base64: dataUri }] }],
         }),
       });
 
