@@ -51,14 +51,27 @@ Analyze this screenshot and determine:
    - Products or items visible
    - Any other relevant metadata
 
-Provide your analysis as a structured JSON response with:
-- primary_bucket: the most likely category
-- bucket_candidates: all possible categories with confidence scores
-- confidence: overall confidence in the primary bucket classification (0-1)
-- rationale: brief explanation of why you classified it this way
-- extracted_data: structured data extracted from the screenshot
+Provide your analysis as a structured JSON response EXACTLY in this format:
 
-Return ONLY valid JSON matching this structure. Be concise but thorough.`;
+{
+  "primary_bucket": "travel",
+  "bucket_candidates": [
+    {"bucket": "travel", "confidence": 0.8},
+    {"bucket": "general", "confidence": 0.2}
+  ],
+  "confidence": 0.8,
+  "rationale": "brief explanation",
+  "extracted_data": {
+    "ocrText": "visible text",
+    "entities": ["entity1", "entity2"],
+    "places": ["place1", "place2"],
+    "products": ["product1"],
+    "metadata": {}
+  }
+}
+
+CRITICAL: bucket_candidates MUST be an array of objects, not a single object.
+Return ONLY the JSON, no markdown, no explanation.`;
 
     try {
       const response = await this.client.messages.create({
