@@ -62,7 +62,7 @@ Return ONLY valid JSON matching this structure. Be concise but thorough.`;
 
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-opus-20240229',
+        model: 'claude-3-sonnet-20240229',
         max_tokens: 2048,
         messages: [
           {
