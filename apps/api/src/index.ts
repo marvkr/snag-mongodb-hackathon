@@ -200,8 +200,14 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
     const processor = new ScreenshotProcessor(process.env.ANTHROPIC_API_KEY);
     const intentData = await processor.extractIntent(imageBase64, imageMediaType);
 
-    // Generate embedding
-    const embedding = await processor.generateEmbedding(imageBase64, process.env.VOYAGE_API_KEY);
+    // Try to generate embedding (optional - graceful degradation)
+    let embedding: number[] | undefined;
+    try {
+      embedding = await processor.generateEmbedding(imageBase64, process.env.VOYAGE_API_KEY);
+    } catch (embeddingError) {
+      console.warn('Failed to generate embedding:', embeddingError);
+      // Continue without embedding - intent extraction is more critical
+    }
 
     // Update screenshot with extracted data
     await screenshotsCollection.updateOne(
@@ -215,7 +221,7 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
             rationale: intentData.rationale,
           },
           extractedData: intentData.extracted_data,
-          embedding,
+          ...(embedding ? { embedding } : {}),
           processedAt: new Date(),
           status: 'completed',
         },
@@ -226,7 +232,8 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       success: true,
       screenshotId,
       intent: intentData,
-      embeddingDimensions: embedding.length,
+      embeddingDimensions: embedding?.length || 0,
+      hasEmbedding: !!embedding,
     });
   } catch (error) {
     console.error('Error processing screenshot:', error);
