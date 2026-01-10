@@ -2,16 +2,18 @@ import React from 'react';
 import { View, Text, Image, StyleSheet } from 'react-native';
 import { ProcessedScreenshot } from '../../types';
 import { Card } from '../common/Card';
+import { SwipeToDelete } from '../common/SwipeToDelete';
 import { IntentBadge } from './IntentBadge';
 import { colors } from '../../constants';
 
 interface ScreenshotCardProps {
   screenshot: ProcessedScreenshot;
   onPress: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
-export function ScreenshotCard({ screenshot, onPress }: ScreenshotCardProps) {
-  return (
+export function ScreenshotCard({ screenshot, onPress, onDelete }: ScreenshotCardProps) {
+  const cardContent = (
     <Card onPress={() => onPress(screenshot.id)} style={styles.card}>
       <View style={styles.content}>
         <Image source={{ uri: screenshot.imageUri }} style={styles.thumbnail} />
@@ -30,6 +32,16 @@ export function ScreenshotCard({ screenshot, onPress }: ScreenshotCardProps) {
       </View>
     </Card>
   );
+
+  if (onDelete) {
+    return (
+      <SwipeToDelete onDelete={() => onDelete(screenshot.id)}>
+        {cardContent}
+      </SwipeToDelete>
+    );
+  }
+
+  return cardContent;
 }
 
 const styles = StyleSheet.create({
