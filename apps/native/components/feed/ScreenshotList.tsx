@@ -1,10 +1,9 @@
-import React, { useCallback } from 'react';
-import { FlatList, StyleSheet, RefreshControl, View, Text } from 'react-native';
-import Animated, { FadeIn, FadeOut, LinearTransition } from 'react-native-reanimated';
+import React, { useCallback, useEffect, useRef } from 'react';
+import { FlatList, StyleSheet, RefreshControl, View, Text, Animated } from 'react-native';
 import { ProcessedScreenshot } from '../../types';
 import { ScreenshotCard } from './ScreenshotCard';
-import { colors } from '../../constants';
 import { SkeletonCard } from '../common/Skeleton';
+import { colors } from '../../constants';
 
 interface ScreenshotListProps {
   screenshots: ProcessedScreenshot[];
@@ -13,6 +12,39 @@ interface ScreenshotListProps {
   isRefreshing: boolean;
   isLoading?: boolean;
   onDelete?: (id: string) => void;
+}
+
+function AnimatedCard({ children, index }: { children: React.ReactNode; index: number }) {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(20)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        delay: index * 50,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 300,
+        delay: index * 50,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={{
+        opacity: fadeAnim,
+        transform: [{ translateY: slideAnim }],
+      }}
+    >
+      {children}
+    </Animated.View>
+  );
 }
 
 export function ScreenshotList({
@@ -25,17 +57,13 @@ export function ScreenshotList({
 }: ScreenshotListProps) {
   const renderItem = useCallback(
     ({ item, index }: { item: ProcessedScreenshot; index: number }) => (
-      <Animated.View
-        entering={FadeIn.delay(index * 50).springify()}
-        exiting={FadeOut}
-        layout={LinearTransition.springify()}
-      >
+      <AnimatedCard index={index}>
         <ScreenshotCard
           screenshot={item}
           onPress={onScreenshotPress}
           onDelete={onDelete}
         />
-      </Animated.View>
+      </AnimatedCard>
     ),
     [onScreenshotPress, onDelete]
   );
@@ -43,10 +71,10 @@ export function ScreenshotList({
   if (isLoading) {
     return (
       <View style={styles.list}>
-        {[1, 2, 3, 4, 5].map((i) => (
-          <Animated.View key={i} entering={FadeIn.delay(i * 100)}>
+        {[0, 1, 2, 3, 4].map((i) => (
+          <AnimatedCard key={i} index={i}>
             <SkeletonCard />
-          </Animated.View>
+          </AnimatedCard>
         ))}
       </View>
     );
@@ -54,15 +82,12 @@ export function ScreenshotList({
 
   if (screenshots.length === 0) {
     return (
-      <Animated.View
-        entering={FadeIn}
-        style={styles.emptyContainer}
-      >
+      <View style={styles.emptyContainer}>
         <Text style={styles.emptyTitle}>No screenshots yet</Text>
         <Text style={styles.emptySubtitle}>
           Share screenshots to this app to get started
         </Text>
-      </Animated.View>
+      </View>
     );
   }
 

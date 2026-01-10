@@ -1,12 +1,10 @@
-import React from 'react';
-import type { StyleProp, ViewStyle } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  runOnJS,
-  useAnimatedStyle,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import React, { useRef } from 'react';
+import {
+  Animated,
+  Pressable,
+  StyleProp,
+  ViewStyle,
+} from 'react-native';
 
 interface PressableScaleProps {
   children: React.ReactNode;
@@ -21,29 +19,29 @@ export function PressableScale({
   style,
   scaleValue = 0.95,
 }: PressableScaleProps) {
-  const scale = useSharedValue(1);
+  const scale = useRef(new Animated.Value(1)).current;
 
-  const gesture = Gesture.Tap()
-    .maxDuration(10000)
-    .onTouchesDown(() => {
-      scale.value = withTiming(scaleValue, { duration: 100 });
-    })
-    .onTouchesUp(() => {
-      if (onPress) {
-        runOnJS(onPress)();
-      }
-    })
-    .onFinalize(() => {
-      scale.value = withTiming(1, { duration: 100 });
-    });
+  const handlePressIn = () => {
+    Animated.timing(scale, {
+      toValue: scaleValue,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  };
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }));
+  const handlePressOut = () => {
+    Animated.timing(scale, {
+      toValue: 1,
+      duration: 100,
+      useNativeDriver: true,
+    }).start();
+  };
 
   return (
-    <GestureDetector gesture={gesture}>
-      <Animated.View style={[style, animatedStyle]}>{children}</Animated.View>
-    </GestureDetector>
+    <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+      <Animated.View style={[style, { transform: [{ scale }] }]}>
+        {children}
+      </Animated.View>
+    </Pressable>
   );
 }

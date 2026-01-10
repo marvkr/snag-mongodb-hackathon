@@ -21,6 +21,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     gap: 12,
+    backgroundColor: colors.background,
   },
   message: {
     fontSize: 14,
