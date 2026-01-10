@@ -1,36 +1,47 @@
 {
   "expo": {
-    "name": "native",
-    "slug": "native",
+    "name": "Snag",
+    "slug": "snag",
     "version": "1.0.0",
-    "scheme": "com.turbo.example",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "scheme": "snag",
     "splash": {
-      "image": "./assets/splash.png",
+      "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
-    "updates": {
-      "fallbackToCacheTimeout": 0
-    },
-    "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.snag.app",
+      "config": {
+        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FFFFFF"
+        "backgroundColor": "#ffffff"
       },
-      "package": "com.turbo.example"
+      "edgeToEdgeEnabled": true,
+      "package": "com.snag.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
+        }
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "plugins": ["expo-router"]
+    "plugins": [
+      "expo-router"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
   }
 }
