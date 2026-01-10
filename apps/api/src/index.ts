@@ -220,7 +220,6 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
         rationale: intentData.rationale,
       },
       extractedData: intentData.extracted_data,
-      extractedMetadata: intentData.extracted_data,
       embedding,
       processedAt: new Date(),
       status: 'completed',
@@ -356,7 +355,7 @@ app.post('/api/generate/:bucketId/:imageId', async (req: Request, res: Response)
 
     const imagesCollection = getImagesCollection();
 
-    // Fetch image with extracted metadata from MongoDB
+    // Fetch image with extracted data from MongoDB
     const image = await imagesCollection.findOne({
       id: imageId,
       bucketId: bucketId
@@ -366,44 +365,50 @@ app.post('/api/generate/:bucketId/:imageId', async (req: Request, res: Response)
       return res.status(404).json({ error: 'Image not found' });
     }
 
-    const extractedMetadata = image.extractedMetadata || {};
+    const extractedData = image.extractedData || {};
 
     // Search Tavily for travel and products buckets
     let searchResults: SearchResultsMetadata | null = null;
 
-    if (bucketId === 'travel' && extractedMetadata.location) {
-      console.log(`🔍 Searching Tavily for travel location: ${extractedMetadata.location}`);
-      searchResults = await searchForTravel(extractedMetadata.location);
+    // For travel: try to find location in places array or entities
+    if (bucketId === 'travel') {
+      const location = extractedData.places?.[0] || extractedData.entities?.[0];
+      if (location) {
+        console.log(`🔍 Searching Tavily for travel location: ${location}`);
+        searchResults = await searchForTravel(location);
 
-      if (searchResults) {
-        try {
-          await imagesCollection.updateOne(
-            { id: imageId, bucketId: bucketId },
-            { $set: { searchResults } }
-          );
-          console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
-        } catch (dbError) {
-          console.error('❌ Failed to store search results:', dbError);
-          // Continue - AI generation not affected
+        if (searchResults) {
+          try {
+            await imagesCollection.updateOne(
+              { id: imageId, bucketId: bucketId },
+              { $set: { searchResults } }
+            );
+            console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
+          } catch (dbError) {
+            console.error('❌ Failed to store search results:', dbError);
+            // Continue - AI generation not affected
+          }
         }
       }
-    } else if (bucketId === 'products' && extractedMetadata.productName) {
-      console.log(`🔍 Searching Tavily for product: ${extractedMetadata.productName}`);
-      searchResults = await searchForProduct(
-        extractedMetadata.productName,
-        extractedMetadata.price
-      );
+    }
+    // For products: try to find product in products array or entities
+    else if (bucketId === 'products') {
+      const productName = extractedData.products?.[0] || extractedData.entities?.[0];
+      if (productName) {
+        console.log(`🔍 Searching Tavily for product: ${productName}`);
+        searchResults = await searchForProduct(productName);
 
-      if (searchResults) {
-        try {
-          await imagesCollection.updateOne(
-            { id: imageId, bucketId: bucketId },
-            { $set: { searchResults } }
-          );
-          console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
-        } catch (dbError) {
-          console.error('❌ Failed to store search results:', dbError);
-          // Continue - AI generation not affected
+        if (searchResults) {
+          try {
+            await imagesCollection.updateOne(
+              { id: imageId, bucketId: bucketId },
+              { $set: { searchResults } }
+            );
+            console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
+          } catch (dbError) {
+            console.error('❌ Failed to store search results:', dbError);
+            // Continue - AI generation not affected
+          }
         }
       }
     }
@@ -412,10 +417,18 @@ app.post('/api/generate/:bucketId/:imageId', async (req: Request, res: Response)
     let schema;
     let prompt;
 
+    // Format extracted data for the AI
+    const extractedDataStr = JSON.stringify(extractedData, null, 2);
+
     switch (bucketId) {
       case 'travel':
         schema = travelOutputSchema;
-        prompt = `Based on the location "${extractedMetadata.location}", provide travel recommendations.${formatSearchResults(searchResults)}
+        prompt = `You are analyzing a travel-related screenshot. Here is the extracted data:
+
+${extractedDataStr}
+
+Based on the extracted data above (look for locations in places, entities, or text), provide travel recommendations.${formatSearchResults(searchResults)}
+
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {
   "locationDescription": "string",
@@ -428,7 +441,12 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
 
       case 'products':
         schema = productsOutputSchema;
-        prompt = `Analyze the product "${extractedMetadata.productName}" (${extractedMetadata.price}).${formatSearchResults(searchResults)}
+        prompt = `You are analyzing a product/shopping screenshot. Here is the extracted data:
+
+${extractedDataStr}
+
+Based on the extracted data above (look for products, prices, or descriptions in the data), provide product analysis.${formatSearchResults(searchResults)}
+
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {
   "summary": "string",
@@ -443,7 +461,11 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
 
       case 'twitter':
         schema = twitterOutputSchema;
-        prompt = `Craft replies to this tweet from ${extractedMetadata.username}: "${extractedMetadata.tweetText}"
+        prompt = `You are analyzing a Twitter/social media screenshot. Here is the extracted data:
+
+${extractedDataStr}
+
+Based on the extracted data above (look for usernames, tweet text, or social media content), craft engaging replies.
 
 Return ONLY a valid JSON object with this exact structure (no markdown, no explanation):
 {
@@ -481,7 +503,7 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
       model,
       bucketId,
       imageId,
-      extractedMetadata,
+      extractedData,
       ...(searchResults && {
         searchResults: {
           query: searchResults.query,

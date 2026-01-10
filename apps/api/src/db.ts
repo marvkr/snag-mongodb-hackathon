@@ -43,7 +43,6 @@ export interface ImageMetadata {
     contentType: string;
     uploadedAt: Date;
   };
-  extractedMetadata?: Record<string, any>;
   intent?: {
     primary_bucket: string;
     bucket_candidates: Array<{
