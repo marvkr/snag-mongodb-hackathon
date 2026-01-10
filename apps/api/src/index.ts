@@ -8,10 +8,13 @@ import {
   connectToDatabase,
   getBucketsCollection,
   getImagesCollection,
+  getScreenshotsCollection,
   ObjectId,
 } from './db';
 import { searchForTravel, searchForProduct } from './services/tavily';
 import type { SearchResultsMetadata } from './db';
+import { ScreenshotProcessor } from './screenshot-processor';
+import { randomUUID } from 'crypto';
 
 dotenv.config();
 
@@ -159,6 +162,175 @@ app.get('/buckets/:bucketId/images/:imageId', async (req: Request, res: Response
     res.status(500).json({
       error: 'Failed to fetch image',
       message: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Process screenshot with Claude Vision
+app.post('/api/screenshots/process', async (req: Request, res: Response) => {
+  try {
+    const { imageBase64, imageMediaType = 'image/jpeg' } = req.body;
+
+    if (!imageBase64) {
+      return res.status(400).json({ error: 'imageBase64 is required' });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return res.status(500).json({ error: 'Anthropic API key not configured' });
+    }
+
+    if (!process.env.VOYAGE_API_KEY) {
+      return res.status(500).json({ error: 'Voyage API key not configured' });
+    }
+
+    const screenshotsCollection = getScreenshotsCollection();
+    const screenshotId = randomUUID();
+
+    // Create initial screenshot record
+    await screenshotsCollection.insertOne({
+      id: screenshotId,
+      imageBase64,
+      imageUrl: '', // Can be added later if stored externally
+      uploadedAt: new Date(),
+      status: 'processing',
+    });
+
+    // Extract intent using Claude Vision
+    const processor = new ScreenshotProcessor(process.env.ANTHROPIC_API_KEY);
+    const intentData = await processor.extractIntent(imageBase64, imageMediaType);
+
+    // Generate embedding
+    const embedding = await processor.generateEmbedding(imageBase64, process.env.VOYAGE_API_KEY);
+
+    // Update screenshot with extracted data
+    await screenshotsCollection.updateOne(
+      { id: screenshotId },
+      {
+        $set: {
+          intent: {
+            primary_bucket: intentData.primary_bucket,
+            bucket_candidates: intentData.bucket_candidates,
+            confidence: intentData.confidence,
+            rationale: intentData.rationale,
+          },
+          extractedData: intentData.extracted_data,
+          embedding,
+          processedAt: new Date(),
+          status: 'completed',
+        },
+      }
+    );
+
+    res.json({
+      success: true,
+      screenshotId,
+      intent: intentData,
+      embeddingDimensions: embedding.length,
+    });
+  } catch (error) {
+    console.error('Error processing screenshot:', error);
+    res.status(500).json({
+      error: 'Failed to process screenshot',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Get all screenshots
+app.get('/api/screenshots', async (req: Request, res: Response) => {
+  try {
+    const { bucket, limit = 50, skip = 0 } = req.query;
+    const screenshotsCollection = getScreenshotsCollection();
+
+    const filter = bucket ? { 'intent.primary_bucket': bucket } : {};
+    const screenshots = await screenshotsCollection
+      .find(filter)
+      .sort({ uploadedAt: -1 })
+      .skip(Number(skip))
+      .limit(Number(limit))
+      .project({ imageBase64: 0 }) // Exclude base64 data for performance
+      .toArray();
+
+    res.json({ success: true, screenshots, count: screenshots.length });
+  } catch (error) {
+    console.error('Error fetching screenshots:', error);
+    res.status(500).json({
+      error: 'Failed to fetch screenshots',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Get specific screenshot
+app.get('/api/screenshots/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const screenshotsCollection = getScreenshotsCollection();
+
+    const screenshot = await screenshotsCollection.findOne({ id });
+
+    if (!screenshot) {
+      return res.status(404).json({ error: 'Screenshot not found' });
+    }
+
+    res.json({ success: true, screenshot });
+  } catch (error) {
+    console.error('Error fetching screenshot:', error);
+    res.status(500).json({
+      error: 'Failed to fetch screenshot',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Vector search screenshots
+app.post('/api/screenshots/search', async (req: Request, res: Response) => {
+  try {
+    const { query, limit = 10 } = req.body;
+
+    if (!query) {
+      return res.status(400).json({ error: 'query is required' });
+    }
+
+    if (!process.env.ANTHROPIC_API_KEY || !process.env.VOYAGE_API_KEY) {
+      return res.status(500).json({ error: 'API keys not configured' });
+    }
+
+    const processor = new ScreenshotProcessor(process.env.ANTHROPIC_API_KEY);
+    const queryEmbedding = await processor.generateTextEmbedding(query, process.env.VOYAGE_API_KEY);
+
+    const screenshotsCollection = getScreenshotsCollection();
+
+    // Perform vector search
+    const results = await screenshotsCollection
+      .aggregate([
+        {
+          $vectorSearch: {
+            index: 'screenshot_vector_index',
+            path: 'embedding',
+            queryVector: queryEmbedding,
+            numCandidates: 100,
+            limit: Number(limit),
+          },
+        },
+        {
+          $project: {
+            id: 1,
+            uploadedAt: 1,
+            intent: 1,
+            extractedData: 1,
+            score: { $meta: 'vectorSearchScore' },
+          },
+        },
+      ])
+      .toArray();
+
+    res.json({ success: true, results, count: results.length });
+  } catch (error) {
+    console.error('Error searching screenshots:', error);
+    res.status(500).json({
+      error: 'Failed to search screenshots',
+      message: error instanceof Error ? error.message : 'Unknown error',
     });
   }
 });
@@ -333,6 +505,11 @@ async function startServer() {
       console.log(`   GET  /buckets/:id`);
       console.log(`   GET  /buckets/:bucketId/images/:imageId`);
       console.log(`   POST /api/generate/:bucketId/:imageId`);
+      console.log(`\n   📸 Screenshot Processing (Phase 1):`);
+      console.log(`   POST /api/screenshots/process`);
+      console.log(`   GET  /api/screenshots`);
+      console.log(`   GET  /api/screenshots/:id`);
+      console.log(`   POST /api/screenshots/search`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);

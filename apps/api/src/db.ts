@@ -48,6 +48,34 @@ export interface ImageMetadata {
   generatedAt?: Date;
 }
 
+export interface Screenshot {
+  _id?: ObjectId;
+  id: string;
+  imageUrl: string;
+  imageBase64?: string;
+  uploadedAt: Date;
+  processedAt?: Date;
+  intent?: {
+    primary_bucket: string;
+    bucket_candidates: Array<{
+      bucket: string;
+      confidence: number;
+    }>;
+    confidence: number;
+    rationale: string;
+  };
+  extractedData?: {
+    ocrText?: string;
+    entities?: string[];
+    places?: string[];
+    products?: string[];
+    metadata?: Record<string, any>;
+  };
+  embedding?: number[];
+  status: 'pending' | 'processing' | 'completed' | 'failed';
+  error?: string;
+}
+
 /**
  * Connect to MongoDB
  */
@@ -89,6 +117,12 @@ async function createIndexes() {
     await db.collection('images').createIndex({ bucketId: 1 });
     await db.collection('images').createIndex({ id: 1 });
 
+    // Index on screenshots for quick lookups and queries
+    await db.collection('screenshots').createIndex({ id: 1 }, { unique: true });
+    await db.collection('screenshots').createIndex({ status: 1 });
+    await db.collection('screenshots').createIndex({ uploadedAt: -1 });
+    await db.collection('screenshots').createIndex({ 'intent.primary_bucket': 1 });
+
     console.log('✅ Database indexes created');
   } catch (error) {
     console.error('❌ Error creating indexes:', error);
@@ -117,6 +151,13 @@ export function getBucketsCollection(): Collection<Bucket> {
  */
 export function getImagesCollection(): Collection<ImageMetadata> {
   return getDb().collection<ImageMetadata>('images');
+}
+
+/**
+ * Get screenshots collection
+ */
+export function getScreenshotsCollection(): Collection<Screenshot> {
+  return getDb().collection<Screenshot>('screenshots');
 }
 
 /**
