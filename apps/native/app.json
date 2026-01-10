@@ -1,13 +1,13 @@
 {
   "expo": {
-    "name": "Trace",
-    "slug": "trace",
+    "name": "Snag",
+    "slug": "snag",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
-    "scheme": "trace",
+    "scheme": "snag",
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.trace.app",
+      "bundleIdentifier": "com.snag.app",
       "config": {
         "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
       }
@@ -26,7 +26,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.trace.app",
+      "package": "com.snag.app",
       "config": {
         "googleMaps": {
           "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"

@@ -1,5 +1,8 @@
 Product Design Requirements (PDR)
-Project Name: Trace
+Project Name: Snag
+Tagline: "Lemme snag that"
+Logo Concept: Fish hook or hand grabbing
+Brand Voice: Casual, everyday language
 Track: Statement Three – Adaptive Retrieval
 Hackathon: MongoDB Agentic Orchestration and Collaboration
 Primary Use Case: Screenshot-driven intent inference → adaptive retrieval → spatial memory
@@ -24,7 +27,7 @@ For the demo, artifact is a Google Maps–style bookmark view for travel.
 
 3. User Flow (End to End)
 User takes a screenshot on their phone
-User shares screenshot to Kuzi app
+User shares screenshot to Snag app
 System processes screenshot asynchronously
 Intent is inferred and routed
 Adaptive retrieval runs based on intent and memory
