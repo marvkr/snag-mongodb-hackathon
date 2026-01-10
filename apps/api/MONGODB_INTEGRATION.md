@@ -87,7 +87,7 @@ Indexes:
 
 Your `.env` file already contains:
 ```
-MONGODB_URI="mongodb+srv://roeybenhaim_db_user:XV9w1mUNp25xhHkR@cluster0.qepru4.mongodb.net/?appName=Cluster0"
+MONGODB_URI=
 ```
 
 ### 2. Seed the Database
