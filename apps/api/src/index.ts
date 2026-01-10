@@ -524,7 +524,9 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
     });
 
     // Parse and validate JSON response
-    const parsedJson = JSON.parse(text.trim());
+    // Remove markdown code blocks if present
+    const cleanedJson = text.trim().replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+    const parsedJson = JSON.parse(cleanedJson);
     const validatedOutput = schema.parse(parsedJson);
 
     // Store the generated output back to MongoDB
