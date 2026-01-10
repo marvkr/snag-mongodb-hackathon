@@ -24,12 +24,12 @@ export function Card({ children, onPress, style }: CardProps) {
 const styles = StyleSheet.create({
   container: {
     backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 12,
-    shadowColor: '#8B7355',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    borderRadius: 24,
+    padding: 16,
+    shadowColor: '#9A9083',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.15,
+    shadowRadius: 24,
+    elevation: 8,
   },
 });

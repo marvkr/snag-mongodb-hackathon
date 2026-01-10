@@ -46,30 +46,32 @@ export function ScreenshotCard({ screenshot, onPress, onDelete }: ScreenshotCard
 
 const styles = StyleSheet.create({
   card: {
-    marginHorizontal: 16,
-    marginVertical: 6,
+    marginHorizontal: 20,
+    marginVertical: 10,
   },
   content: {
     flexDirection: 'row',
-    gap: 12,
+    gap: 16,
   },
   thumbnail: {
-    width: 80,
-    height: 100,
-    borderRadius: 8,
+    width: 85,
+    height: 105,
+    borderRadius: 14,
     backgroundColor: colors.surface,
   },
   details: {
     flex: 1,
-    gap: 6,
+    gap: 10,
+    paddingVertical: 4,
   },
   rationale: {
-    fontSize: 13,
-    color: colors.text.secondary,
-    lineHeight: 18,
+    fontSize: 15,
+    color: colors.text.primary,
+    lineHeight: 21,
+    fontWeight: '500',
   },
   date: {
-    fontSize: 11,
+    fontSize: 13,
     color: colors.text.muted,
   },
 });

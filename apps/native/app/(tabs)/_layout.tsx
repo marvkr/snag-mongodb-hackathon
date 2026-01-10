@@ -6,19 +6,29 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.tabBar.active,
-        tabBarInactiveTintColor: colors.tabBar.inactive,
+        tabBarActiveTintColor: colors.text.primary,
+        tabBarInactiveTintColor: colors.text.muted,
+        tabBarShowLabel: false,
         tabBarStyle: {
-          backgroundColor: colors.tabBar.background,
-          borderTopColor: colors.border,
+          backgroundColor: colors.background,
+          borderTopWidth: 0,
+          elevation: 0,
+          shadowOpacity: 0,
+          height: 80,
+          paddingTop: 12,
         },
         headerStyle: {
           backgroundColor: colors.background,
+          elevation: 0,
+          shadowOpacity: 0,
+          borderBottomWidth: 0,
         },
         headerTitleStyle: {
-          fontWeight: '600',
+          fontWeight: '700',
+          fontSize: 26,
           color: colors.text.primary,
         },
+        headerTitleAlign: 'left',
       }}
     >
       <Tabs.Screen
@@ -26,8 +36,12 @@ export default function TabLayout() {
         options={{
           title: 'Feed',
           headerTitle: 'Your Screenshots',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="images-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'home' : 'home-outline'}
+              size={26}
+              color={color}
+            />
           ),
         }}
       />
@@ -36,8 +50,12 @@ export default function TabLayout() {
         options={{
           title: 'Map',
           headerShown: false,
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="map-outline" size={size} color={color} />
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? 'map' : 'map-outline'}
+              size={26}
+              color={color}
+            />
           ),
         }}
       />
