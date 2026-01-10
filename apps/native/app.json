@@ -42,7 +42,13 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Snag to access your photos for screenshot analysis"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { InferredIntent } from '../../types';
 import { intentBucketConfig, colors } from '../../constants';
 import { ConfidenceIndicator } from '../common';
@@ -44,6 +45,37 @@ export function IntentDetails({ intent }: IntentDetailsProps) {
                 </Text>
               </View>
             ))}
+        </View>
+      )}
+
+      {/* Multi-Agent Analysis - shows when multiple agents are involved */}
+      {intent.candidates.filter((c) => c.confidence >= 0.3).length > 1 && (
+        <View style={styles.multiAgentContainer}>
+          <View style={styles.multiAgentHeader}>
+            <Ionicons name="git-branch" size={16} color={colors.primary} />
+            <Text style={styles.multiAgentTitle}>Multi-Agent Analysis</Text>
+          </View>
+          <Text style={styles.multiAgentDescription}>
+            Multiple specialist agents analyzed this screenshot:
+          </Text>
+          <View style={styles.agentChipsRow}>
+            {intent.candidates
+              .filter((c) => c.confidence >= 0.3)
+              .map((candidate) => {
+                const agentConfig = intentBucketConfig[candidate.bucket];
+                return (
+                  <View key={candidate.bucket} style={styles.agentChip}>
+                    <View
+                      style={[
+                        styles.agentDot,
+                        { backgroundColor: agentConfig.color },
+                      ]}
+                    />
+                    <Text style={styles.agentName}>{agentConfig.label} Agent</Text>
+                  </View>
+                );
+              })}
+          </View>
         </View>
       )}
     </View>
@@ -116,5 +148,50 @@ const styles = StyleSheet.create({
   candidateScore: {
     fontSize: 13,
     color: colors.text.muted,
+  },
+  multiAgentContainer: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: 12,
+    gap: 8,
+  },
+  multiAgentHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  multiAgentTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  multiAgentDescription: {
+    fontSize: 13,
+    color: colors.text.secondary,
+  },
+  agentChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 4,
+  },
+  agentChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.background,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 12,
+    gap: 6,
+  },
+  agentDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  agentName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: colors.text.primary,
   },
 });

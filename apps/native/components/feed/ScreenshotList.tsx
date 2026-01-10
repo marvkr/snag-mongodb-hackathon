@@ -12,6 +12,7 @@ interface ScreenshotListProps {
   isRefreshing: boolean;
   isLoading?: boolean;
   onDelete?: (id: string) => void;
+  ListHeaderComponent?: React.ReactElement;
 }
 
 function AnimatedCard({ children, index }: { children: React.ReactNode; index: number }) {
@@ -54,6 +55,7 @@ export function ScreenshotList({
   isRefreshing,
   isLoading = false,
   onDelete,
+  ListHeaderComponent,
 }: ScreenshotListProps) {
   const renderItem = useCallback(
     ({ item, index }: { item: ProcessedScreenshot; index: number }) => (
@@ -97,6 +99,7 @@ export function ScreenshotList({
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
       contentContainerStyle={styles.list}
+      ListHeaderComponent={ListHeaderComponent}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
