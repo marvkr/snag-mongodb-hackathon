@@ -1,19 +1,17 @@
 import React from 'react';
 import { StyleSheet, View, Text } from 'react-native';
-import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { AnimatedLogo, AnimatedButton } from '../components/onboarding';
-import { useOnboardingComplete } from '../hooks';
+import { useOnboardingContext } from '../contexts';
 import { colors } from '../constants/colors';
 
 export default function OnboardingScreen() {
-  const router = useRouter();
-  const { completeOnboarding } = useOnboardingComplete();
+  const { completeOnboarding } = useOnboardingContext();
 
   const handleGetStarted = async () => {
     await completeOnboarding();
-    router.replace('/(tabs)');
+    // Navigation handled by RootLayout when isComplete changes
   };
 
   return (

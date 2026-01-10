@@ -4,10 +4,14 @@
     "dev": "turbo run dev",
     "build": "turbo run build",
     "clean": "turbo run clean && rm -rf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore"
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore",
+    "api": "pnpm --filter @repo/api dev",
+    "tunnel": "ngrok http 3001 --domain=fresh-donkey-actively.ngrok-free.app",
+    "serve": "concurrently -n api,ngrok -c blue,green \"pnpm api\" \"pnpm tunnel\""
   },
   "devDependencies": {
     "@types/minimatch": "^6.0.0",
+    "concurrently": "^9.2.1",
     "prettier": "^3.1.1",
     "turbo": "^2.7.3"
   },

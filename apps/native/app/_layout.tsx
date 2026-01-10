@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { useOnboardingComplete } from '../hooks';
+import { OnboardingProvider, useOnboardingContext } from '../contexts';
 import { colors } from '../constants/colors';
 
 function LoadingScreen() {
@@ -13,8 +13,8 @@ function LoadingScreen() {
   );
 }
 
-export default function RootLayout() {
-  const { isComplete, isLoading } = useOnboardingComplete();
+function RootNavigator() {
+  const { isComplete, isLoading } = useOnboardingContext();
   const router = useRouter();
   const segments = useSegments();
   const [isNavigationReady, setIsNavigationReady] = useState(false);
@@ -53,6 +53,14 @@ export default function RootLayout() {
         />
       </Stack>
     </>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <OnboardingProvider>
+      <RootNavigator />
+    </OnboardingProvider>
   );
 }
 

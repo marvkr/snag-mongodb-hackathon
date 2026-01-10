@@ -54,7 +54,7 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiUrl": "http://localhost:3001",
+      "apiUrl": "https://fresh-donkey-actively.ngrok-free.app",
       "router": {},
       "eas": {
         "projectId": "21dbec93-4717-408d-9d62-c5a4a1c6ca3f"
