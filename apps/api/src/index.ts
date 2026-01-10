@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import { createFireworks } from '@ai-sdk/fireworks';
+import { fireworks } from '@ai-sdk/fireworks';
 import { generateText } from 'ai';
 
 dotenv.config();
@@ -12,11 +12,6 @@ const PORT = process.env.PORT || 3001;
 // Middleware
 app.use(cors());
 app.use(express.json());
-
-// Initialize Fireworks AI
-const fireworks = createFireworks({
-  apiKey: process.env.FIREWORKS_API_KEY,
-});
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
