@@ -185,6 +185,7 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
     }
 
     const screenshotsCollection = getScreenshotsCollection();
+    const imagesCollection = getImagesCollection();
     const screenshotId = randomUUID();
 
     // Create initial screenshot record
@@ -228,12 +229,32 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       }
     );
 
+    // Save to bucket as an image
+    const imageId = randomUUID();
+    const bucketId = intentData.primary_bucket;
+
+    await imagesCollection.insertOne({
+      id: imageId,
+      bucketId: bucketId,
+      url: '', // Can store external URL if needed
+      metadata: {
+        filename: `screenshot_${screenshotId}.${imageMediaType.split('/')[1] || 'png'}`,
+        size: imageBase64.length,
+        contentType: imageMediaType,
+        uploadedAt: new Date(),
+      },
+      extractedMetadata: intentData.extracted_data,
+    });
+
     res.json({
       success: true,
       screenshotId,
+      imageId,
+      bucketId,
       intent: intentData,
       embeddingDimensions: embedding?.length || 0,
       hasEmbedding: !!embedding,
+      extractedData: intentData.extracted_data,
     });
   } catch (error) {
     console.error('Error processing screenshot:', error);
