@@ -4,6 +4,12 @@ import dotenv from 'dotenv';
 import { fireworks } from '@ai-sdk/fireworks';
 import { generateText } from 'ai';
 import { z } from 'zod';
+import {
+  connectToDatabase,
+  getBucketsCollection,
+  getImagesCollection,
+  ObjectId,
+} from './db';
 
 dotenv.config();
 
@@ -50,32 +56,24 @@ app.get('/health', (_req: Request, res: Response) => {
 // Get all buckets
 app.get('/buckets', async (_req: Request, res: Response) => {
   try {
-    // TODO: Fetch from MongoDB
-    // const buckets = await db.collection('buckets').find().toArray();
+    const bucketsCollection = getBucketsCollection();
+    const imagesCollection = getImagesCollection();
 
-    // Placeholder data
-    const buckets = [
-      {
-        id: 'travel',
-        name: 'Travel',
-        description: 'Extracts locations and provides travel recommendations',
-        createdAt: new Date()
-      },
-      {
-        id: 'products',
-        name: 'Products',
-        description: 'Analyzes products and finds similar items with reviews',
-        createdAt: new Date()
-      },
-      {
-        id: 'twitter',
-        name: 'Twitter Screenshots',
-        description: 'Crafts engaging replies to tweets',
-        createdAt: new Date()
-      },
-    ];
+    // Fetch all buckets from MongoDB
+    const buckets = await bucketsCollection.find().toArray();
 
-    res.json({ success: true, buckets });
+    // Get image counts for each bucket
+    const bucketsWithCounts = await Promise.all(
+      buckets.map(async (bucket) => {
+        const imageCount = await imagesCollection.countDocuments({ bucketId: bucket.id });
+        return {
+          ...bucket,
+          imageCount,
+        };
+      })
+    );
+
+    res.json({ success: true, buckets: bucketsWithCounts });
   } catch (error) {
     console.error('Error fetching buckets:', error);
     res.status(500).json({
@@ -89,20 +87,29 @@ app.get('/buckets', async (_req: Request, res: Response) => {
 app.get('/buckets/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const bucketsCollection = getBucketsCollection();
+    const imagesCollection = getImagesCollection();
 
-    // TODO: Fetch from MongoDB
-    // const bucket = await db.collection('buckets').findOne({ _id: new ObjectId(id) });
+    // Fetch bucket from MongoDB by id field
+    const bucket = await bucketsCollection.findOne({ id });
 
-    // Placeholder data
-    const bucket = {
-      id,
-      name: 'Sample Bucket',
-      description: 'This is a placeholder bucket',
-      createdAt: new Date(),
-      imageCount: 5
-    };
+    if (!bucket) {
+      return res.status(404).json({
+        error: 'Bucket not found',
+        message: `No bucket found with id: ${id}`
+      });
+    }
 
-    res.json({ success: true, bucket });
+    // Get image count for this bucket
+    const imageCount = await imagesCollection.countDocuments({ bucketId: id });
+
+    res.json({
+      success: true,
+      bucket: {
+        ...bucket,
+        imageCount,
+      },
+    });
   } catch (error) {
     console.error('Error fetching bucket:', error);
     res.status(500).json({
@@ -116,25 +123,20 @@ app.get('/buckets/:id', async (req: Request, res: Response) => {
 app.get('/buckets/:bucketId/images/:imageId', async (req: Request, res: Response) => {
   try {
     const { bucketId, imageId } = req.params;
+    const imagesCollection = getImagesCollection();
 
-    // TODO: Fetch from MongoDB
-    // const image = await db.collection('images').findOne({
-    //   _id: new ObjectId(imageId),
-    //   bucketId: new ObjectId(bucketId)
-    // });
-
-    // Placeholder data
-    const image = {
+    // Fetch image from MongoDB
+    const image = await imagesCollection.findOne({
       id: imageId,
-      bucketId,
-      url: 'https://example.com/image.jpg',
-      metadata: {
-        filename: 'sample.jpg',
-        size: 1024000,
-        contentType: 'image/jpeg',
-        uploadedAt: new Date()
-      }
-    };
+      bucketId: bucketId
+    });
+
+    if (!image) {
+      return res.status(404).json({
+        error: 'Image not found',
+        message: `No image found with id: ${imageId} in bucket: ${bucketId}`
+      });
+    }
 
     res.json({ success: true, image });
   } catch (error) {
@@ -156,42 +158,19 @@ app.post('/api/generate/:bucketId/:imageId', async (req: Request, res: Response)
       return res.status(500).json({ error: 'Fireworks API key not configured' });
     }
 
-    // TODO: Fetch image with extracted metadata from MongoDB
-    // const image = await db.collection('images').findOne({
-    //   _id: new ObjectId(imageId),
-    //   bucketId: bucketId
-    // });
-    // if (!image) {
-    //   return res.status(404).json({ error: 'Image not found' });
-    // }
-    // const extractedMetadata = image.extractedMetadata;
+    const imagesCollection = getImagesCollection();
 
-    // Placeholder extracted metadata (this would come from MongoDB)
-    const placeholderData: Record<string, any> = {
-      'travel': {
-        location: 'Eiffel Tower, Paris, France',
-        landmarks: ['Eiffel Tower', 'Seine River'],
-        time: 'Sunset',
-        description: 'Iconic view of the Eiffel Tower at golden hour'
-      },
-      'products': {
-        productName: 'Premium Widget',
-        price: '$99.99',
-        description: 'High quality widget for everyday use',
-        material: 'Stainless Steel',
-        brand: 'WidgetCo',
-        category: 'Home & Kitchen'
-      },
-      'twitter': {
-        username: '@johndoe',
-        tweetText: 'Just launched my new startup! So excited about the journey ahead. #entrepreneurship #startup',
-        timestamp: '2 hours ago',
-        likes: 245,
-        retweets: 67
-      }
-    };
+    // Fetch image with extracted metadata from MongoDB
+    const image = await imagesCollection.findOne({
+      id: imageId,
+      bucketId: bucketId
+    });
 
-    const extractedMetadata = placeholderData[bucketId] || {};
+    if (!image) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    const extractedMetadata = image.extractedMetadata || {};
 
     // Select schema and create prompt based on bucket type
     let schema;
@@ -256,11 +235,11 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
     const parsedJson = JSON.parse(text.trim());
     const validatedOutput = schema.parse(parsedJson);
 
-    // TODO: Store the generated output back to MongoDB
-    // await db.collection('images').updateOne(
-    //   { _id: new ObjectId(imageId), bucketId: bucketId },
-    //   { $set: { aiOutput: validatedOutput, generatedAt: new Date() } }
-    // );
+    // Store the generated output back to MongoDB
+    await imagesCollection.updateOne(
+      { id: imageId, bucketId: bucketId },
+      { $set: { aiOutput: validatedOutput, generatedAt: new Date() } }
+    );
 
     res.json({
       success: true,
@@ -279,12 +258,26 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 API server running on http://localhost:${PORT}`);
-  console.log(`📡 Available endpoints:`);
-  console.log(`   GET  /health`);
-  console.log(`   GET  /buckets`);
-  console.log(`   GET  /buckets/:id`);
-  console.log(`   GET  /buckets/:bucketId/images/:imageId`);
-  console.log(`   POST /api/generate/:bucketId/:imageId`);
-});
+// Initialize database and start server
+async function startServer() {
+  try {
+    // Connect to MongoDB
+    await connectToDatabase();
+
+    // Start Express server
+    app.listen(PORT, () => {
+      console.log(`🚀 API server running on http://localhost:${PORT}`);
+      console.log(`📡 Available endpoints:`);
+      console.log(`   GET  /health`);
+      console.log(`   GET  /buckets`);
+      console.log(`   GET  /buckets/:id`);
+      console.log(`   GET  /buckets/:bucketId/images/:imageId`);
+      console.log(`   POST /api/generate/:bucketId/:imageId`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
