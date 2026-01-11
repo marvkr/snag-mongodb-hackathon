@@ -2,7 +2,7 @@ import React from 'react';
 import { View, ScrollView, Image, StyleSheet } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useScreenshotDetail } from '../../hooks';
-import { IntentDetails, ExtractedPlaces, LoadingSpinner } from '../../components';
+import { IntentDetails, ExtractedPlaces, ResearchInsights, LoadingSpinner } from '../../components';
 import { colors } from '../../constants';
 
 export default function ScreenshotDetailScreen() {
@@ -25,6 +25,12 @@ export default function ScreenshotDetailScreen() {
       <View style={styles.section}>
         <IntentDetails intent={screenshot.intent} />
       </View>
+
+      {screenshot.searchResults && (
+        <View style={styles.section}>
+          <ResearchInsights searchResults={screenshot.searchResults} />
+        </View>
+      )}
 
       <View style={styles.section}>
         <ExtractedPlaces

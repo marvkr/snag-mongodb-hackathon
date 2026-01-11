@@ -43,10 +43,16 @@ export class ScreenshotProcessor {
 Analyze this screenshot and determine:
 1. What the user is interested in based on the visual content
 2. Which category this screenshot belongs to:
-   - travel: locations, destinations, maps, places to visit, restaurants, hotels
-   - shopping: products, reviews, pricing, e-commerce sites, items to buy
-   - startup: company info, funding, tech news, startup opportunities, business ideas
+   - travel: locations, destinations, maps, places to visit, restaurants, hotels, cafes
+   - shopping: fashion posts, clothing, accessories, beauty products, product photos, influencer content showing items, e-commerce sites, reviews, pricing, items to buy, outfit posts, product recommendations, shopping hauls, product displays
+   - startup: company info, funding, tech news, startup opportunities, business ideas, tech industry content
    - general: anything that doesn't clearly fit the above categories
+
+IMPORTANT CLASSIFICATION RULES:
+- If you see clothing, fashion, accessories, beauty items, or product displays → classify as "shopping"
+- If you see social media posts featuring products, outfits, or items → classify as "shopping"
+- If you see location names, places, restaurants, or travel destinations → classify as "travel"
+- Only use "general" if content truly doesn't fit travel, shopping, or startup categories
 
 3. Extract relevant data:
    - Any text visible in the screenshot (OCR)

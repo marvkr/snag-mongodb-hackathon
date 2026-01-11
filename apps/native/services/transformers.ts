@@ -4,6 +4,8 @@ import {
   IntentBucket,
   InferredIntent,
   IntentCandidate,
+  SearchResults,
+  TavilySearchResult,
 } from '../types';
 
 // Backend response types
@@ -27,6 +29,20 @@ interface BackendExtractedData {
   metadata?: Record<string, unknown>;
 }
 
+interface BackendTavilyResult {
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+}
+
+interface BackendSearchResults {
+  query: string;
+  results: BackendTavilyResult[];
+  searchedAt: string | Date;
+  resultCount: number;
+}
+
 interface BackendScreenshot {
   id: string;
   bucketId: string;
@@ -41,6 +57,7 @@ interface BackendScreenshot {
   extractedMetadata?: BackendExtractedData; // Backend uses this field name
   status?: string;
   processedAt?: string | Date;
+  searchResults?: BackendSearchResults;
 }
 
 interface BackendProcessResponse {
@@ -113,6 +130,26 @@ export function transformScreenshot(backend: BackendScreenshot): ProcessedScreen
     };
   }
 
+  // Transform search results if present
+  let searchResults: SearchResults | undefined;
+  if (backend.searchResults) {
+    const searchedAt = typeof backend.searchResults.searchedAt === 'string'
+      ? backend.searchResults.searchedAt
+      : backend.searchResults.searchedAt.toISOString();
+
+    searchResults = {
+      query: backend.searchResults.query,
+      results: backend.searchResults.results.map(r => ({
+        title: r.title,
+        url: r.url,
+        content: r.content,
+        score: r.score,
+      })),
+      searchedAt,
+      resultCount: backend.searchResults.resultCount,
+    };
+  }
+
   return {
     id: backend.id,
     imageUri,
@@ -122,6 +159,7 @@ export function transformScreenshot(backend: BackendScreenshot): ProcessedScreen
     intent,
     extractedText: extracted?.ocrText,
     extractedPlaceIds: extracted?.places || [],
+    searchResults,
   };
 }
 
