@@ -35,10 +35,20 @@ export function SharedImageProvider({ children }: { children: React.ReactNode })
   const handleDeepLink = (url: string) => {
     const parsed = Linking.parse(url);
 
+    // DEBUG: Log the parsed URL structure
+    console.log('🔗 Deep link received:', url);
+    console.log('📦 Parsed URL:', JSON.stringify(parsed, null, 2));
+
     // Handle snag://share?image=...
     if (parsed.path === 'share' && parsed.queryParams?.image) {
       const imageUri = decodeURIComponent(parsed.queryParams.image as string);
+      console.log('✅ Setting shared image URI:', imageUri);
       setSharedImageUri(imageUri);
+    } else {
+      console.log('❌ Deep link did not match conditions');
+      console.log('   - parsed.path:', parsed.path);
+      console.log('   - parsed.hostname:', parsed.hostname);
+      console.log('   - parsed.queryParams:', parsed.queryParams);
     }
   };
 

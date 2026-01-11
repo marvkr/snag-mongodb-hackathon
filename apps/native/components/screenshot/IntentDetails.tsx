@@ -14,7 +14,7 @@ export function IntentDetails({ intent }: IntentDetailsProps) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.sectionTitle}>Intent Analysis</Text>
+      <Text style={styles.sectionTitle}>What is this?</Text>
 
       <View style={styles.bucketRow}>
         <View style={[styles.bucketBadge, { backgroundColor: config.color }]}>
@@ -26,13 +26,13 @@ export function IntentDetails({ intent }: IntentDetailsProps) {
       </View>
 
       <View style={styles.rationaleContainer}>
-        <Text style={styles.rationaleLabel}>Why this bucket?</Text>
+        <Text style={styles.rationaleLabel}>Why?</Text>
         <Text style={styles.rationale}>{intent.rationale}</Text>
       </View>
 
       {intent.candidates.length > 1 && (
         <View style={styles.candidatesContainer}>
-          <Text style={styles.candidatesLabel}>Other possibilities</Text>
+          <Text style={styles.candidatesLabel}>Could also be</Text>
           {intent.candidates
             .filter((c) => c.bucket !== intent.primaryBucket)
             .map((candidate) => (
@@ -53,10 +53,10 @@ export function IntentDetails({ intent }: IntentDetailsProps) {
         <View style={styles.multiAgentContainer}>
           <View style={styles.multiAgentHeader}>
             <Ionicons name="git-branch" size={16} color={colors.primary} />
-            <Text style={styles.multiAgentTitle}>Multi-Agent Analysis</Text>
+            <Text style={styles.multiAgentTitle}>AI detected</Text>
           </View>
           <Text style={styles.multiAgentDescription}>
-            Multiple specialist agents analyzed this screenshot:
+            Multiple AI systems checked this:
           </Text>
           <View style={styles.agentChipsRow}>
             {intent.candidates
@@ -71,7 +71,7 @@ export function IntentDetails({ intent }: IntentDetailsProps) {
                         { backgroundColor: agentConfig.color },
                       ]}
                     />
-                    <Text style={styles.agentName}>{agentConfig.label} Agent</Text>
+                    <Text style={styles.agentName}>{agentConfig.label}</Text>
                   </View>
                 );
               })}

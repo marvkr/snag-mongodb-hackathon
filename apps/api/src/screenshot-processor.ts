@@ -1,5 +1,6 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
+import * as sharp from 'sharp';
 
 // Zod schema for intent extraction output
 const IntentExtractionSchema = z.object({
@@ -195,6 +196,41 @@ Return ONLY the JSON, no markdown, no explanation.`;
     } catch (error) {
       console.error('Error generating text embedding:', error);
       throw new Error(`Failed to generate text embedding: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Generate a compressed thumbnail from a base64 image
+   * @param imageBase64 - Base64 encoded image (without data URI prefix)
+   * @param maxWidth - Maximum width in pixels (default: 400)
+   * @param maxHeight - Maximum height in pixels (default: 400)
+   * @param quality - JPEG quality 1-100 (default: 80)
+   * @returns Base64 encoded thumbnail
+   */
+  async generateThumbnail(
+    imageBase64: string,
+    maxWidth: number = 400,
+    maxHeight: number = 400,
+    quality: number = 80
+  ): Promise<string> {
+    try {
+      // Convert base64 to buffer
+      const imageBuffer = Buffer.from(imageBase64, 'base64');
+
+      // Resize and compress image
+      const thumbnailBuffer = await sharp(imageBuffer)
+        .resize(maxWidth, maxHeight, {
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
+        .jpeg({ quality, mozjpeg: true })
+        .toBuffer();
+
+      // Convert back to base64
+      return thumbnailBuffer.toString('base64');
+    } catch (error) {
+      console.error('Error generating thumbnail:', error);
+      throw new Error(`Failed to generate thumbnail: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   }
 }

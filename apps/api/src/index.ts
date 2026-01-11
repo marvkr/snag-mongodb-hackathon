@@ -209,48 +209,81 @@ app.get('/buckets/:bucketId/images/:imageId', async (req: Request, res: Response
 
 // Process screenshot with Claude Vision
 app.post('/api/screenshots/process', async (req: Request, res: Response) => {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`\n[Backend:${requestId}] 📸 POST /api/screenshots/process`);
+
   try {
     const { imageBase64, imageMediaType = 'image/jpeg' } = req.body;
+    console.log(`[Backend:${requestId}] Image media type:`, imageMediaType);
+    console.log(`[Backend:${requestId}] Image base64 size:`, imageBase64?.length || 0, 'bytes');
 
     if (!imageBase64) {
+      console.log(`[Backend:${requestId}] ❌ Missing imageBase64`);
       return res.status(400).json({ error: 'imageBase64 is required' });
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
+      console.log(`[Backend:${requestId}] ❌ Missing ANTHROPIC_API_KEY`);
       return res.status(500).json({ error: 'Anthropic API key not configured' });
     }
 
     if (!process.env.VOYAGE_API_KEY) {
+      console.log(`[Backend:${requestId}] ❌ Missing VOYAGE_API_KEY`);
       return res.status(500).json({ error: 'Voyage API key not configured' });
     }
 
     const imagesCollection = getImagesCollection();
     const imageId = randomUUID();
+    console.log(`[Backend:${requestId}] Generated image ID:`, imageId);
 
     // Extract intent using Claude Vision
+    console.log(`[Backend:${requestId}] 🤖 Starting intent extraction...`);
     const processor = new ScreenshotProcessor(process.env.ANTHROPIC_API_KEY);
+    const intentStart = Date.now();
     const intentData = await processor.extractIntent(imageBase64, imageMediaType);
+    console.log(`[Backend:${requestId}] ✅ Intent extracted in ${Date.now() - intentStart}ms`);
+    console.log(`[Backend:${requestId}] Primary bucket:`, intentData.primary_bucket);
+    console.log(`[Backend:${requestId}] Confidence:`, intentData.confidence);
+
+    // Generate thumbnail for faster loading in lists
+    console.log(`[Backend:${requestId}] 🖼️  Generating thumbnail...`);
+    let thumbnailBase64: string | undefined;
+    try {
+      const thumbStart = Date.now();
+      thumbnailBase64 = await processor.generateThumbnail(imageBase64, 400, 400, 80);
+      console.log(`[Backend:${requestId}] ✅ Generated thumbnail in ${Date.now() - thumbStart}ms (original: ${imageBase64.length} bytes, thumbnail: ${thumbnailBase64.length} bytes)`);
+    } catch (thumbnailError) {
+      console.warn(`[Backend:${requestId}] ⚠️  Failed to generate thumbnail:`, thumbnailError);
+      // Continue without thumbnail - will use full image as fallback
+    }
 
     // Try to generate embedding (optional - graceful degradation)
+    console.log(`[Backend:${requestId}] 🧬 Generating embedding...`);
     let embedding: number[] | undefined;
     try {
+      const embeddingStart = Date.now();
       embedding = await processor.generateEmbedding(imageBase64, process.env.VOYAGE_API_KEY);
+      console.log(`[Backend:${requestId}] ✅ Generated embedding in ${Date.now() - embeddingStart}ms (dimensions: ${embedding.length})`);
     } catch (embeddingError) {
-      console.warn('Failed to generate embedding:', embeddingError);
+      console.warn(`[Backend:${requestId}] ⚠️  Failed to generate embedding:`, embeddingError);
       // Continue without embedding - intent extraction is more critical
     }
 
     const bucketId = intentData.primary_bucket;
+    console.log(`[Backend:${requestId}] 💾 Saving to MongoDB (bucket: ${bucketId})...`);
 
     // Save directly to images collection
+    const saveStart = Date.now();
     await imagesCollection.insertOne({
       id: imageId,
       bucketId: bucketId,
       url: '', // Can store external URL if needed
       imageBase64,
+      thumbnailBase64,
       metadata: {
         filename: `screenshot_${imageId}.${imageMediaType.split('/')[1] || 'png'}`,
         size: imageBase64.length,
+        thumbnailSize: thumbnailBase64?.length,
         contentType: imageMediaType,
         uploadedAt: new Date(),
       },
@@ -265,6 +298,7 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       processedAt: new Date(),
       status: 'completed',
     });
+    console.log(`[Backend:${requestId}] ✅ Saved to MongoDB in ${Date.now() - saveStart}ms`);
 
     // Travel Agent: Process places if this is a travel bucket
     let placesProcessed = 0;
@@ -328,6 +362,7 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       }
     }
 
+    console.log(`[Backend:${requestId}] 📤 Sending success response...`);
     res.json({
       success: true,
       imageId,
@@ -341,37 +376,125 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
         clustersCreated,
       } : undefined,
     });
+    console.log(`[Backend:${requestId}] ✅ Screenshot processed successfully\n`);
   } catch (error) {
-    console.error('Error processing screenshot:', error);
+    console.error(`[Backend:${requestId}] ❌ Error processing screenshot:`, error);
+    console.error(`[Backend:${requestId}] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({
       error: 'Failed to process screenshot',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
+    console.log(`[Backend:${requestId}] ❌ Error response sent\n`);
   }
 });
 
 // Get all screenshots (now uses images collection)
 app.get('/api/screenshots', async (req: Request, res: Response) => {
+  const requestId = Math.random().toString(36).substring(7);
+  console.log(`\n[Backend:${requestId}] 🎯 GET /api/screenshots`);
+  console.log(`[Backend:${requestId}] Query params:`, req.query);
+  console.log(`[Backend:${requestId}] Headers:`, {
+    'user-agent': req.headers['user-agent'],
+    'content-type': req.headers['content-type'],
+  });
+
   try {
     const { bucket, limit = 50, skip = 0 } = req.query;
+    console.log(`[Backend:${requestId}] Parsed params - bucket:`, bucket, 'limit:', limit, 'skip:', skip);
+
     const imagesCollection = getImagesCollection();
+    console.log(`[Backend:${requestId}] ✅ Got images collection`);
 
     const filter = bucket ? { 'intent.primary_bucket': bucket } : {};
+    console.log(`[Backend:${requestId}] MongoDB filter:`, JSON.stringify(filter));
+
+    console.log(`[Backend:${requestId}] 📡 Querying MongoDB...`);
+    const queryStart = Date.now();
+
     const screenshots = await imagesCollection
       .find(filter)
       .sort({ 'metadata.uploadedAt': -1 })
       .skip(Number(skip))
       .limit(Number(limit))
-      .project({ imageBase64: 0 }) // Exclude base64 data for performance
+      // Always exclude embeddings for performance
+      .project({ embedding: 0 })
       .toArray();
 
-    res.json({ success: true, screenshots, count: screenshots.length });
+    const queryDuration = Date.now() - queryStart;
+    console.log(`[Backend:${requestId}] ✅ MongoDB query complete in ${queryDuration}ms`);
+    console.log(`[Backend:${requestId}] Found ${screenshots.length} screenshots`);
+
+    if (screenshots.length > 0) {
+      const first = screenshots[0];
+      console.log(`[Backend:${requestId}] First screenshot sample:`, {
+        id: first.id,
+        bucketId: first.bucketId,
+        hasImageBase64: !!first.imageBase64,
+        hasThumbnail: !!first.thumbnailBase64,
+        imageBase64Length: first.imageBase64?.length,
+        thumbnailLength: first.thumbnailBase64?.length,
+        uploadedAt: first.metadata?.uploadedAt,
+        allKeys: Object.keys(first),  // Show all available fields
+      });
+
+      // Count how many have image data
+      const withImage = screenshots.filter(s => s.imageBase64).length;
+      const withThumbnail = screenshots.filter(s => s.thumbnailBase64).length;
+      console.log(`[Backend:${requestId}] 📊 Stats: ${withImage}/${screenshots.length} have imageBase64, ${withThumbnail}/${screenshots.length} have thumbnails`);
+    }
+
+    // Post-process: Compress images on-the-fly (don't modify database)
+    console.log(`[Backend:${requestId}] 🔄 Compressing screenshots on-the-fly...`);
+    const processor = new ScreenshotProcessor(process.env.ANTHROPIC_API_KEY || '');
+
+    const optimizedScreenshots = await Promise.all(
+      screenshots.map(async (screenshot) => {
+        // If has pre-generated thumbnail, use it
+        if (screenshot.thumbnailBase64) {
+          const { imageBase64, ...rest } = screenshot;
+          return rest;
+        }
+
+        // Otherwise, compress full image on-the-fly
+        if (screenshot.imageBase64) {
+          try {
+            console.log(`[Backend:${requestId}] Compressing ${screenshot.id} (${(screenshot.imageBase64.length / 1024).toFixed(0)}KB)...`);
+            const thumbnailBase64 = await processor.generateThumbnail(screenshot.imageBase64, 400, 400, 80);
+            console.log(`[Backend:${requestId}] ✅ Compressed to ${(thumbnailBase64.length / 1024).toFixed(0)}KB`);
+
+            const { imageBase64, ...rest } = screenshot;
+            return {
+              ...rest,
+              thumbnailBase64, // Send compressed version
+            };
+          } catch (error) {
+            console.error(`[Backend:${requestId}] ⚠️ Compression failed for ${screenshot.id}:`, error);
+            // Fallback: return without image
+            const { imageBase64, ...rest } = screenshot;
+            return rest;
+          }
+        }
+
+        return screenshot;
+      })
+    );
+
+    console.log(`[Backend:${requestId}] ✅ Optimized ${optimizedScreenshots.length} screenshots`);
+    console.log(`[Backend:${requestId}] 📤 Sending response...`);
+
+    const responseSize = JSON.stringify(optimizedScreenshots).length;
+    console.log(`[Backend:${requestId}] Response size: ${(responseSize / 1024).toFixed(2)} KB`);
+
+    res.json({ success: true, screenshots: optimizedScreenshots, count: optimizedScreenshots.length });
+    console.log(`[Backend:${requestId}] ✅ Response sent successfully\n`);
   } catch (error) {
-    console.error('Error fetching screenshots:', error);
+    console.error(`[Backend:${requestId}] ❌ Error fetching screenshots:`, error);
+    console.error(`[Backend:${requestId}] Error stack:`, error instanceof Error ? error.stack : 'No stack trace');
     res.status(500).json({
       error: 'Failed to fetch screenshots',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
+    console.log(`[Backend:${requestId}] ❌ Error response sent\n`);
   }
 });
 
@@ -381,19 +504,57 @@ app.get('/api/screenshots/:id', async (req: Request, res: Response) => {
     const { id } = req.params;
     const imagesCollection = getImagesCollection();
 
-    const screenshot = await imagesCollection.findOne({ id });
+    // Exclude imageBase64 for performance - use /api/screenshots/:id/image for image data
+    const screenshot = await imagesCollection.findOne(
+      { id },
+      { projection: { imageBase64: 0, embedding: 0 } }
+    );
 
     if (!screenshot) {
       return res.status(404).json({ error: 'Screenshot not found' });
     }
 
-    res.json({ success: true, screenshot });
+    // Add URL to fetch image separately
+    const screenshotWithUrl = {
+      ...screenshot,
+      url: `/api/screenshots/${id}/image`,
+    };
+
+    res.json({ success: true, screenshot: screenshotWithUrl });
   } catch (error) {
     console.error('Error fetching screenshot:', error);
     res.status(500).json({
       error: 'Failed to fetch screenshot',
       message: error instanceof Error ? error.message : 'Unknown error',
     });
+  }
+});
+
+// Get screenshot image (returns base64 or serves image)
+app.get('/api/screenshots/:id/image', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const imagesCollection = getImagesCollection();
+
+    const screenshot = await imagesCollection.findOne(
+      { id },
+      { projection: { imageBase64: 1, 'metadata.contentType': 1 } }
+    );
+
+    if (!screenshot || !screenshot.imageBase64) {
+      return res.status(404).json({ error: 'Image not found' });
+    }
+
+    // Return as actual image
+    const imageBuffer = Buffer.from(screenshot.imageBase64, 'base64');
+    const contentType = screenshot.metadata?.contentType || 'image/jpeg';
+
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Cache-Control', 'public, max-age=86400'); // Cache for 24 hours
+    res.send(imageBuffer);
+  } catch (error) {
+    console.error('Error fetching screenshot image:', error);
+    res.status(500).json({ error: 'Failed to fetch image' });
   }
 });
 
@@ -630,15 +791,33 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   }
 });
 
-// Get all places
+// Get all places (extracted from images.extractedData.location)
 app.get('/api/places', async (_req: Request, res: Response) => {
   try {
-    const placesCollection = getPlacesCollection();
+    const imagesCollection = getImagesCollection();
 
-    const places = await placesCollection
-      .find()
-      .sort({ createdAt: -1 })
+    // Get all images with extractedData.location
+    const images = await imagesCollection
+      .find({ 'extractedData.location': { $exists: true } })
+      .sort({ 'metadata.uploadedAt': -1 })
       .toArray();
+
+    // Transform to places format
+    const places = images
+      .filter(img => img.extractedData?.location?.coordinates)
+      .map(img => ({
+        id: img.id,
+        name: img.extractedData?.location?.name || 'Unknown',
+        address: img.extractedData?.location?.address,
+        coordinates: {
+          latitude: img.extractedData?.location?.coordinates?.lat,
+          longitude: img.extractedData?.location?.coordinates?.lng,
+        },
+        sourceScreenshotId: img.id,
+        placeId: img.extractedData?.location?.placeId,
+        googleMapsUrl: img.extractedData?.location?.googleMapsUrl,
+        createdAt: img.metadata?.uploadedAt || new Date(),
+      }));
 
     res.json({ success: true, places, count: places.length });
   } catch (error) {
@@ -654,14 +833,29 @@ app.get('/api/places', async (_req: Request, res: Response) => {
 app.get('/api/screenshots/:id/places', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const placesCollection = getPlacesCollection();
+    const imagesCollection = getImagesCollection();
 
-    const places = await placesCollection
-      .find({ sourceScreenshotId: id })
-      .sort({ createdAt: -1 })
-      .toArray();
+    const image = await imagesCollection.findOne({ id });
 
-    res.json({ success: true, places, count: places.length });
+    if (!image || !image.extractedData?.location?.coordinates) {
+      return res.json({ success: true, places: [], count: 0 });
+    }
+
+    const place = {
+      id: image.id,
+      name: image.extractedData?.location?.name || 'Unknown',
+      address: image.extractedData?.location?.address,
+      coordinates: {
+        latitude: image.extractedData?.location?.coordinates?.lat,
+        longitude: image.extractedData?.location?.coordinates?.lng,
+      },
+      sourceScreenshotId: image.id,
+      placeId: image.extractedData?.location?.placeId,
+      googleMapsUrl: image.extractedData?.location?.googleMapsUrl,
+      createdAt: image.metadata?.uploadedAt || new Date(),
+    };
+
+    res.json({ success: true, places: [place], count: 1 });
   } catch (error) {
     console.error('Error fetching places for screenshot:', error);
     res.status(500).json({
@@ -691,16 +885,26 @@ app.get('/api/places/clusters', async (_req: Request, res: Response) => {
   }
 });
 
-// Get map region to fit all places
+// Get map region to fit all places (from images.extractedData.location)
 app.get('/api/places/region', async (_req: Request, res: Response) => {
   try {
-    const placesCollection = getPlacesCollection();
+    const imagesCollection = getImagesCollection();
 
-    const places = await placesCollection.find().toArray();
+    const images = await imagesCollection
+      .find({ 'extractedData.location.coordinates': { $exists: true } })
+      .toArray();
 
-    if (places.length === 0) {
+    if (images.length === 0) {
       return res.json({ success: true, region: null });
     }
+
+    // Transform to places format for region calculation
+    const places = images.map(img => ({
+      coordinates: {
+        latitude: img.extractedData?.location?.coordinates?.lat,
+        longitude: img.extractedData?.location?.coordinates?.lng,
+      },
+    }));
 
     const region = TravelAgent.calculateMapRegion(places);
 

@@ -72,9 +72,11 @@ export interface ImageMetadata {
   bucketId: string;
   url: string;
   imageBase64?: string;
+  thumbnailBase64?: string;
   metadata: {
     filename: string;
     size: number;
+    thumbnailSize?: number;
     contentType: string;
     uploadedAt: Date;
   };

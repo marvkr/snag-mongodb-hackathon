@@ -18,7 +18,7 @@ export function ExtractedPlaces({ places, onPlacePress, onViewOnMap }: Extracted
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.sectionTitle}>Extracted Places</Text>
+        <Text style={styles.sectionTitle}>Places</Text>
         {onViewOnMap && (
           <Pressable onPress={onViewOnMap} style={styles.viewMapButton}>
             <Text style={styles.viewMapText}>View on Map</Text>

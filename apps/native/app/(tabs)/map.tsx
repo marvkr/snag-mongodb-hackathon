@@ -25,7 +25,10 @@ export default function MapScreen() {
         initialRegion={region ?? undefined}
         onPlacePress={handlePlacePress}
       />
-      <MapHeader title="LA spots you've been saving" placeCount={places.length} />
+      <MapHeader
+        title={places.length > 0 ? "Places you need to visit!" : "No places yet"}
+        placeCount={places.length}
+      />
     </View>
   );
 }

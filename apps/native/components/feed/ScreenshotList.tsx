@@ -82,24 +82,25 @@ export function ScreenshotList({
     );
   }
 
-  if (screenshots.length === 0) {
-    return (
-      <View style={styles.emptyContainer}>
-        <Text style={styles.emptyTitle}>No screenshots yet</Text>
-        <Text style={styles.emptySubtitle}>
-          Share screenshots to this app to get started
-        </Text>
-      </View>
-    );
-  }
+  const EmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={styles.emptyTitle}>No screenshots found</Text>
+      <Text style={styles.emptySubtitle}>
+        {screenshots.length === 0
+          ? 'Share screenshots to this app to get started'
+          : 'Try a different search term'}
+      </Text>
+    </View>
+  );
 
   return (
     <FlatList
       data={screenshots}
       keyExtractor={(item) => item.id}
       renderItem={renderItem}
-      contentContainerStyle={styles.list}
+      contentContainerStyle={screenshots.length === 0 ? styles.emptyContentContainer : styles.list}
       ListHeaderComponent={ListHeaderComponent}
+      ListEmptyComponent={EmptyState}
       refreshControl={
         <RefreshControl
           refreshing={isRefreshing}
@@ -116,11 +117,16 @@ const styles = StyleSheet.create({
   list: {
     paddingVertical: 8,
   },
+  emptyContentContainer: {
+    paddingVertical: 8,
+    flexGrow: 1,
+  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 24,
+    minHeight: 400,
   },
   emptyTitle: {
     fontSize: 18,
