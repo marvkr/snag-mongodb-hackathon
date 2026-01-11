@@ -362,7 +362,6 @@ app.get('/api/screenshots', async (req: Request, res: Response) => {
       .sort({ 'metadata.uploadedAt': -1 })
       .skip(Number(skip))
       .limit(Number(limit))
-      .project({ imageBase64: 0 }) // Exclude base64 data for performance
       .toArray();
 
     res.json({ success: true, screenshots, count: screenshots.length });

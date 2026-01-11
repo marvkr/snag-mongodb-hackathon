@@ -72,6 +72,6 @@ export const screenshotsService = {
       }
     );
 
-    return transformProcessResponse(response, imageUri);
+    return transformProcessResponse(response, compressedImage.uri);
   },
 };
