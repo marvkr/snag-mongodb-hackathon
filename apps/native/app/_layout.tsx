@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
-import { OnboardingProvider, useOnboardingContext } from '../contexts';
+import { OnboardingProvider, useOnboardingContext, ShareIntentProvider } from '../contexts';
 import { colors } from '../constants/colors';
 
 function LoadingScreen() {
@@ -58,9 +58,11 @@ function RootNavigator() {
 
 export default function RootLayout() {
   return (
-    <OnboardingProvider>
-      <RootNavigator />
-    </OnboardingProvider>
+    <ShareIntentProvider>
+      <OnboardingProvider>
+        <RootNavigator />
+      </OnboardingProvider>
+    </ShareIntentProvider>
   );
 }
 

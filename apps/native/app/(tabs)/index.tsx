@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useScreenshots, useUploadScreenshot } from '../../hooks';
+import { useShareIntentContext } from '../../contexts';
 import {
   ScreenshotList,
   LoadingSpinner,
@@ -14,8 +15,24 @@ export default function FeedScreen() {
   const router = useRouter();
   const { screenshots, isLoading, refetch } = useScreenshots();
   const { upload, status, progress, error, result, reset } = useUploadScreenshot();
+  const { sharedFiles, hasSharedFiles, clearSharedFiles } = useShareIntentContext();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const processingSharedRef = useRef(false);
+
+  // Handle shared images from share sheet
+  useEffect(() => {
+    if (hasSharedFiles && !processingSharedRef.current) {
+      processingSharedRef.current = true;
+      const firstImage = sharedFiles[0];
+      if (firstImage) {
+        handleImageSelected(firstImage.uri).finally(() => {
+          clearSharedFiles();
+          processingSharedRef.current = false;
+        });
+      }
+    }
+  }, [hasSharedFiles, sharedFiles]);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
