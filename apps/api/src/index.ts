@@ -266,6 +266,47 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       status: 'completed',
     });
 
+    // Tavily Research: Fetch research insights for travel and shopping
+    let searchResults: SearchResultsMetadata | null = null;
+
+    if (bucketId === 'travel') {
+      const location = intentData.extracted_data?.places?.[0]?.name || intentData.extracted_data?.entities?.[0];
+      if (location) {
+        console.log(`🔍 Researching travel location: ${location}`);
+        searchResults = await searchForTravel(location);
+
+        if (searchResults) {
+          try {
+            await imagesCollection.updateOne(
+              { id: imageId },
+              { $set: { searchResults } }
+            );
+            console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
+          } catch (dbError) {
+            console.error('❌ Failed to store search results:', dbError);
+          }
+        }
+      }
+    } else if (bucketId === 'shopping') {
+      const productName = intentData.extracted_data?.products?.[0] || intentData.extracted_data?.entities?.[0];
+      if (productName) {
+        console.log(`🔍 Researching product: ${productName}`);
+        searchResults = await searchForProduct(productName);
+
+        if (searchResults) {
+          try {
+            await imagesCollection.updateOne(
+              { id: imageId },
+              { $set: { searchResults } }
+            );
+            console.log(`✅ Stored ${searchResults.resultCount} Tavily results for ${imageId}`);
+          } catch (dbError) {
+            console.error('❌ Failed to store search results:', dbError);
+          }
+        }
+      }
+    }
+
     // Travel Agent: Process places if this is a travel bucket
     let placesProcessed = 0;
     let clustersCreated = 0;
