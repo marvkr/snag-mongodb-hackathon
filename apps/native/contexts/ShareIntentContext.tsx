@@ -1,5 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { useShareIntent } from 'expo-share-intent';
+import {
+  ShareIntentProvider as LibraryShareIntentProvider,
+  useShareIntentContext as useLibraryShareIntentContext,
+} from 'expo-share-intent';
 
 interface ShareIntentFile {
   uri: string;
@@ -15,8 +18,8 @@ interface ShareIntentContextValue {
 
 const ShareIntentContext = createContext<ShareIntentContextValue | null>(null);
 
-export function ShareIntentProvider({ children }: { children: React.ReactNode }) {
-  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+function ShareIntentHandler({ children }: { children: React.ReactNode }) {
+  const { hasShareIntent, shareIntent, resetShareIntent } = useLibraryShareIntentContext();
   const [sharedFiles, setSharedFiles] = useState<ShareIntentFile[]>([]);
 
   useEffect(() => {
@@ -50,6 +53,14 @@ export function ShareIntentProvider({ children }: { children: React.ReactNode })
     >
       {children}
     </ShareIntentContext.Provider>
+  );
+}
+
+export function ShareIntentProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <LibraryShareIntentProvider>
+      <ShareIntentHandler>{children}</ShareIntentHandler>
+    </LibraryShareIntentProvider>
   );
 }
 
