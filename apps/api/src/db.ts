@@ -146,7 +146,7 @@ async function createIndexes() {
 
     // Index on images for bucket queries and lookups
     await db.collection('images').createIndex({ bucketId: 1 });
-    await db.collection('images').createIndex({ id: 1 }, { unique: true });
+    await db.collection('images').createIndex({ id: 1 });
     await db.collection('images').createIndex({ status: 1 });
     await db.collection('images').createIndex({ 'metadata.uploadedAt': -1 });
     await db.collection('images').createIndex({ 'intent.primary_bucket': 1 });
