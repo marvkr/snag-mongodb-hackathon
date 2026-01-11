@@ -6,7 +6,7 @@
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\" --ignore-path .gitignore",
     "api": "pnpm --filter @repo/api dev",
-    "tunnel": "ngrok http 3001 --domain=fresh-donkey-actively.ngrok-free.app",
+    "tunnel": "ngrok http 3001 --authtoken=2h9vrwIswBAiiDYJGgSmr8GVdk5_5BP18FiDpuy9aQURjRHNM --domain=fresh-donkey-actively.ngrok-free.app",
     "serve": "concurrently -n api,ngrok -c blue,green \"pnpm api\" \"pnpm tunnel\""
   },
   "devDependencies": {

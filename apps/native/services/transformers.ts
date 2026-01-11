@@ -38,6 +38,7 @@ interface BackendScreenshot {
   };
   intent?: BackendIntent;
   extractedData?: BackendExtractedData;
+  extractedMetadata?: BackendExtractedData; // Backend uses this field name
   status?: string;
   processedAt?: string | Date;
 }
@@ -94,13 +95,23 @@ export function transformScreenshot(backend: BackendScreenshot): ProcessedScreen
     imageUri = `data:image/jpeg;base64,${backend.imageBase64}`;
   }
 
-  const defaultIntent: InferredIntent = {
-    primaryBucket: 'general',
-    confidence: 0,
-    rationale: '',
-    candidates: [],
-    timestamp: createdAt,
-  };
+  // Backend uses extractedMetadata, fallback to extractedData
+  const extracted = backend.extractedMetadata || backend.extractedData;
+
+  // Build intent from backend.intent or infer from bucketId
+  let intent: InferredIntent;
+  if (backend.intent) {
+    intent = transformIntent(backend.intent);
+  } else {
+    // Fallback: create intent from bucketId
+    intent = {
+      primaryBucket: mapBucket(backend.bucketId),
+      confidence: 0.8,
+      rationale: extracted?.ocrText || 'Classified from screenshot',
+      candidates: [{ bucket: mapBucket(backend.bucketId), confidence: 0.8 }],
+      timestamp: createdAt,
+    };
+  }
 
   return {
     id: backend.id,
@@ -108,9 +119,9 @@ export function transformScreenshot(backend: BackendScreenshot): ProcessedScreen
     createdAt,
     source: 'share',
     processingStatus: (backend.status as ProcessingStatus) || 'completed',
-    intent: backend.intent ? transformIntent(backend.intent) : defaultIntent,
-    extractedText: backend.extractedData?.ocrText,
-    extractedPlaceIds: backend.extractedData?.places || [],
+    intent,
+    extractedText: extracted?.ocrText,
+    extractedPlaceIds: extracted?.places || [],
   };
 }
 

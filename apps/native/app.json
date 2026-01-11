@@ -48,6 +48,15 @@
         {
           "photosPermission": "Allow Snag to access your photos for screenshot analysis"
         }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "iosActivationRules": {
+            "NSExtensionActivationSupportsImageWithMaxCount": 10
+          },
+          "androidIntentFilters": ["image/*"]
+        }
       ]
     ],
     "experiments": {
