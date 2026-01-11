@@ -1,4 +1,5 @@
 import { File } from 'expo-file-system';
+import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import { ProcessedScreenshot } from '../types';
 import { mockScreenshots } from '../mocks';
 import { apiClient, USE_MOCK } from './api.client';
@@ -46,8 +47,15 @@ export const screenshotsService = {
       throw new Error('Submit not available in mock mode');
     }
 
-    // Read image and convert to base64 using new File API
-    const file = new File(imageUri);
+    // Compress image to ensure it's under 5 MB (Claude API limit)
+    const compressedImage = await manipulateAsync(
+      imageUri,
+      [{ resize: { width: 2048 } }], // Resize to max 2048px width
+      { compress: 0.7, format: SaveFormat.JPEG }
+    );
+
+    // Read compressed image and convert to base64
+    const file = new File(compressedImage.uri);
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     let binaryString = '';
@@ -56,20 +64,11 @@ export const screenshotsService = {
     }
     const base64 = btoa(binaryString);
 
-    // Determine media type from URI
-    const lowerUri = imageUri.toLowerCase();
-    let mediaType = 'image/jpeg';
-    if (lowerUri.includes('.png')) {
-      mediaType = 'image/png';
-    } else if (lowerUri.includes('.webp')) {
-      mediaType = 'image/webp';
-    }
-
     const response = await apiClient.post<BackendProcessResponse>(
       '/api/screenshots/process',
       {
         imageBase64: base64,
-        imageMediaType: mediaType,
+        imageMediaType: 'image/jpeg',
       }
     );
 
