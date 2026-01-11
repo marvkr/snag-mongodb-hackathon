@@ -31,6 +31,41 @@ export interface SearchResultsMetadata {
   resultCount: number;
 }
 
+export interface Coordinates {
+  latitude: number;
+  longitude: number;
+}
+
+export interface PlaceMetadata {
+  neighborhood?: string;
+  city?: string;
+  country?: string;
+  placeType?: string;
+}
+
+export interface Place {
+  _id?: ObjectId;
+  id: string;
+  name: string;
+  address?: string;
+  coordinates: Coordinates;
+  category?: string;
+  sourceScreenshotId: string;
+  clusterId?: string;
+  metadata?: PlaceMetadata;
+  createdAt: Date;
+}
+
+export interface PlaceCluster {
+  _id?: ObjectId;
+  id: string;
+  name: string;
+  centroid: Coordinates;
+  placeIds: string[];
+  color: string;
+  createdAt: Date;
+}
+
 export interface ImageMetadata {
   _id?: ObjectId;
   id: string;
@@ -55,7 +90,11 @@ export interface ImageMetadata {
   extractedData?: {
     ocrText?: string;
     entities?: string[];
-    places?: string[];
+    places?: Array<{
+      name: string;
+      latitude?: number;
+      longitude?: number;
+    }>;
     products?: string[];
     metadata?: Record<string, any>;
   };
@@ -112,6 +151,16 @@ async function createIndexes() {
     await db.collection('images').createIndex({ 'metadata.uploadedAt': -1 });
     await db.collection('images').createIndex({ 'intent.primary_bucket': 1 });
 
+    // Index on places for quick lookups and filtering
+    await db.collection('places').createIndex({ id: 1 }, { unique: true });
+    await db.collection('places').createIndex({ sourceScreenshotId: 1 });
+    await db.collection('places').createIndex({ clusterId: 1 });
+    await db.collection('places').createIndex({ createdAt: -1 });
+
+    // Index on clusters for quick lookups
+    await db.collection('clusters').createIndex({ id: 1 }, { unique: true });
+    await db.collection('clusters').createIndex({ createdAt: -1 });
+
     console.log('✅ Database indexes created');
   } catch (error) {
     console.error('❌ Error creating indexes:', error);
@@ -140,6 +189,20 @@ export function getBucketsCollection(): Collection<Bucket> {
  */
 export function getImagesCollection(): Collection<ImageMetadata> {
   return getDb().collection<ImageMetadata>('images');
+}
+
+/**
+ * Get places collection
+ */
+export function getPlacesCollection(): Collection<Place> {
+  return getDb().collection<Place>('places');
+}
+
+/**
+ * Get clusters collection
+ */
+export function getClustersCollection(): Collection<PlaceCluster> {
+  return getDb().collection<PlaceCluster>('clusters');
 }
 
 /**

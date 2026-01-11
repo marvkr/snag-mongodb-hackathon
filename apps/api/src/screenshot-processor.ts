@@ -15,7 +15,11 @@ const IntentExtractionSchema = z.object({
   extracted_data: z.object({
     ocrText: z.string().optional(),
     entities: z.array(z.string()).optional(),
-    places: z.array(z.string()).optional(),
+    places: z.array(z.object({
+      name: z.string(),
+      latitude: z.number().optional(),
+      longitude: z.number().optional(),
+    })).optional(),
     products: z.array(z.string()).optional(),
     metadata: z.record(z.string(), z.any()).optional(),
   }).optional(),
@@ -47,9 +51,12 @@ Analyze this screenshot and determine:
 3. Extract relevant data:
    - Any text visible in the screenshot (OCR)
    - Named entities (people, places, organizations, products)
-   - Specific places or locations mentioned
+   - Specific places or locations mentioned WITH their approximate latitude and longitude coordinates
    - Products or items visible
    - Any other relevant metadata
+
+IMPORTANT: For each place, provide the name AND approximate coordinates (latitude, longitude).
+Use your knowledge to estimate coordinates for well-known places, cities, or landmarks.
 
 Provide your analysis as a structured JSON response EXACTLY in this format:
 
@@ -64,13 +71,19 @@ Provide your analysis as a structured JSON response EXACTLY in this format:
   "extracted_data": {
     "ocrText": "visible text",
     "entities": ["entity1", "entity2"],
-    "places": ["place1", "place2"],
+    "places": [
+      {"name": "Eiffel Tower", "latitude": 48.8584, "longitude": 2.2945},
+      {"name": "Paris, France", "latitude": 48.8566, "longitude": 2.3522}
+    ],
     "products": ["product1"],
     "metadata": {}
   }
 }
 
-CRITICAL: bucket_candidates MUST be an array of objects, not a single object.
+CRITICAL:
+- bucket_candidates MUST be an array of objects, not a single object.
+- places MUST be an array of objects with name, latitude, and longitude fields.
+- Provide coordinates even if approximate - use your world knowledge.
 Return ONLY the JSON, no markdown, no explanation.`;
 
     try {

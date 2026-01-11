@@ -8,11 +8,16 @@ import {
   connectToDatabase,
   getBucketsCollection,
   getImagesCollection,
+  getPlacesCollection,
+  getClustersCollection,
   ObjectId,
+  Place,
+  PlaceCluster,
 } from './db';
 import { searchForTravel, searchForProduct } from './services/tavily';
 import type { SearchResultsMetadata } from './db';
 import { ScreenshotProcessor } from './screenshot-processor';
+import { TravelAgent } from './services/travel-agent';
 import { randomUUID } from 'crypto';
 
 dotenv.config();
@@ -261,6 +266,68 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       status: 'completed',
     });
 
+    // Travel Agent: Process places if this is a travel bucket
+    let placesProcessed = 0;
+    let clustersCreated = 0;
+
+    if (bucketId === 'travel' && intentData.extracted_data?.places && intentData.extracted_data.places.length > 0) {
+      try {
+        console.log(`🗺️  Travel Agent: Processing ${intentData.extracted_data.places.length} places for screenshot ${imageId}`);
+
+        const placesCollection = getPlacesCollection();
+        const clustersCollection = getClustersCollection();
+
+        // Convert extracted places to Place objects
+        const places: Place[] = intentData.extracted_data.places
+          .filter(p => p.latitude !== undefined && p.longitude !== undefined)
+          .map(p => ({
+            id: randomUUID(),
+            name: p.name,
+            coordinates: {
+              latitude: p.latitude!,
+              longitude: p.longitude!,
+            },
+            sourceScreenshotId: imageId,
+            createdAt: new Date(),
+          }));
+
+        if (places.length > 0) {
+          // Save places to database
+          await placesCollection.insertMany(places);
+          placesProcessed = places.length;
+          console.log(`✅ Saved ${places.length} places to database`);
+
+          // Cluster places if we have multiple
+          if (places.length > 1) {
+            const travelAgent = new TravelAgent();
+            const clusters = travelAgent.clusterPlaces(places);
+
+            if (clusters.length > 0) {
+              // Update places with cluster IDs
+              for (const cluster of clusters) {
+                await placesCollection.updateMany(
+                  { id: { $in: cluster.placeIds } },
+                  { $set: { clusterId: cluster.id } }
+                );
+              }
+
+              // Save clusters
+              const clustersToInsert: PlaceCluster[] = clusters.map(c => ({
+                ...c,
+                createdAt: new Date(),
+              }));
+              await clustersCollection.insertMany(clustersToInsert);
+              clustersCreated = clusters.length;
+              console.log(`✅ Created ${clusters.length} clusters`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error processing places with Travel Agent:', error);
+        // Don't fail the whole request, just log the error
+      }
+    }
+
     res.json({
       success: true,
       imageId,
@@ -269,6 +336,10 @@ app.post('/api/screenshots/process', async (req: Request, res: Response) => {
       embeddingDimensions: embedding?.length || 0,
       hasEmbedding: !!embedding,
       extractedData: intentData.extracted_data,
+      travelAgent: bucketId === 'travel' ? {
+        placesProcessed,
+        clustersCreated,
+      } : undefined,
     });
   } catch (error) {
     console.error('Error processing screenshot:', error);
@@ -559,6 +630,90 @@ Return ONLY a valid JSON object with this exact structure (no markdown, no expla
   }
 });
 
+// Get all places
+app.get('/api/places', async (_req: Request, res: Response) => {
+  try {
+    const placesCollection = getPlacesCollection();
+
+    const places = await placesCollection
+      .find()
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({ success: true, places, count: places.length });
+  } catch (error) {
+    console.error('Error fetching places:', error);
+    res.status(500).json({
+      error: 'Failed to fetch places',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Get places for a specific screenshot
+app.get('/api/screenshots/:id/places', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const placesCollection = getPlacesCollection();
+
+    const places = await placesCollection
+      .find({ sourceScreenshotId: id })
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({ success: true, places, count: places.length });
+  } catch (error) {
+    console.error('Error fetching places for screenshot:', error);
+    res.status(500).json({
+      error: 'Failed to fetch places',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Get all clusters
+app.get('/api/places/clusters', async (_req: Request, res: Response) => {
+  try {
+    const clustersCollection = getClustersCollection();
+
+    const clusters = await clustersCollection
+      .find()
+      .sort({ createdAt: -1 })
+      .toArray();
+
+    res.json({ success: true, clusters, count: clusters.length });
+  } catch (error) {
+    console.error('Error fetching clusters:', error);
+    res.status(500).json({
+      error: 'Failed to fetch clusters',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
+// Get map region to fit all places
+app.get('/api/places/region', async (_req: Request, res: Response) => {
+  try {
+    const placesCollection = getPlacesCollection();
+
+    const places = await placesCollection.find().toArray();
+
+    if (places.length === 0) {
+      return res.json({ success: true, region: null });
+    }
+
+    const region = TravelAgent.calculateMapRegion(places);
+
+    res.json({ success: true, region });
+  } catch (error) {
+    console.error('Error calculating map region:', error);
+    res.status(500).json({
+      error: 'Failed to calculate map region',
+      message: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+});
+
 // Initialize database and start server
 async function startServer() {
   try {
@@ -574,11 +729,16 @@ async function startServer() {
       console.log(`   GET  /buckets/:id`);
       console.log(`   GET  /buckets/:bucketId/images/:imageId`);
       console.log(`   POST /api/generate/:bucketId/:imageId`);
-      console.log(`\n   📸 Screenshot Processing (Phase 1):`);
+      console.log(`\n   📸 Screenshot Processing:`);
       console.log(`   POST /api/screenshots/process`);
       console.log(`   GET  /api/screenshots`);
       console.log(`   GET  /api/screenshots/:id`);
       console.log(`   POST /api/screenshots/search`);
+      console.log(`\n   🗺️  Places & Travel Agent:`);
+      console.log(`   GET  /api/places`);
+      console.log(`   GET  /api/screenshots/:id/places`);
+      console.log(`   GET  /api/places/clusters`);
+      console.log(`   GET  /api/places/region`);
     });
   } catch (error) {
     console.error('Failed to start server:', error);
