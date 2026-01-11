@@ -50,12 +50,14 @@
         }
       ],
       [
-        "expo-share-intent",
+        "expo-share-extension",
         {
-          "iosActivationRules": {
-            "NSExtensionActivationSupportsImageWithMaxCount": 10
-          },
-          "androidIntentFilters": ["image/*"]
+          "activationRules": [
+            {
+              "type": "image",
+              "max": 10
+            }
+          ]
         }
       ]
     ],

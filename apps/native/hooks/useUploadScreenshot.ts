@@ -33,20 +33,13 @@ export function useUploadScreenshot(): UseUploadScreenshotReturn {
         setResult(null);
 
         setStatus('uploading');
-        setProgress('Preparing image...');
-
-        // Small delay for UX
-        await new Promise((r) => setTimeout(r, 300));
-        setProgress('Sending to server...');
-
-        setStatus('processing');
-        setProgress('AI is analyzing your screenshot...');
+        setProgress('');
 
         const screenshot = await screenshotsService.submit(imageUri);
 
         setResult(screenshot);
         setStatus('completed');
-        setProgress('Done!');
+        setProgress('');
 
         return screenshot;
       } catch (e) {

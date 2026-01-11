@@ -1,2 +1,2 @@
 export { OnboardingProvider, useOnboardingContext } from './OnboardingContext';
-export { ShareIntentProvider, useShareIntentContext } from './ShareIntentContext';
+export { SharedImageProvider, useSharedImage } from './SharedImageContext';
